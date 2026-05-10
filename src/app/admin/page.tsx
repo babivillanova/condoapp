@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import { Masthead } from "@/components/masthead";
+import { Section } from "@/components/section";
 import { isAdmin } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
@@ -12,14 +13,22 @@ import {
   setProfileStatusAction,
 } from "@/lib/admin-actions";
 import { AGE_BANDS, GENDERS } from "@/lib/types";
+import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ status?: string }>;
 
+const STATUS_LABEL: Record<string, string> = {
+  verified: "verificado",
+  pending: "pendente",
+  rejected: "rejeitado",
+};
+
 export default async function AdminHome({ searchParams }: { searchParams: SearchParams }) {
   if (!(await isAdmin())) redirect("/admin/login");
   const { status } = await searchParams;
+  const condoName = process.env.NEXT_PUBLIC_CONDO_NAME ?? "Meu Condomínio";
 
   const sb = supabaseAdmin();
   let q = sb
@@ -33,6 +42,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
   if (status && ["verified", "pending", "rejected"].includes(status)) {
     q = q.eq("status", status);
   }
+
   const [{ data: profilesData }, { data: countsData, count: totalCount }, { data: suggData }, { data: catsData }] =
     await Promise.all([
       q,
@@ -57,194 +67,235 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Painel administrativo</h1>
-          <p className="text-sm text-slate-600">{statusCounts.total} resposta(s) no total.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/admin/roster"
-            className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-50"
-          >
-            Gerenciar lista
-          </Link>
+    <div className="min-h-screen bg-bg text-ink">
+      <Masthead
+        condoName={condoName}
+        mode="admin"
+        tabs={[
+          { label: "Mapa", href: "/dashboard" },
+          { label: "Respostas", href: "/admin", active: true },
+          { label: "Lista oficial", href: "/admin/roster" },
+        ]}
+        rightSlot={
           <form action={logoutAdminAction}>
-            <Button type="submit" variant="ghost" full={false} className="h-9 px-3 text-[13px]">Sair</Button>
+            <Button type="submit" variant="ghost" full={false} className="h-9 px-3 text-[13px]">
+              Sair
+            </Button>
           </form>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-4">
-        {([
-          ["Todos", "", statusCounts.total],
-          ["Verificados", "verified", statusCounts.verified],
-          ["Pendentes", "pending", statusCounts.pending],
-          ["Rejeitados", "rejected", statusCounts.rejected],
-        ] as Array<[string, string, number]>).map(([label, value, count]) => (
-          <Link
-            key={label}
-            href={value ? `/admin?status=${value}` : "/admin"}
-            className={
-              (status ?? "") === value
-                ? "rounded-xl border border-brand-500 bg-brand-50 p-4"
-                : "rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-300"
-            }
+      <div className="flex flex-col gap-6 px-8 pb-16 pt-7">
+        <div>
+          <div className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-3">
+            Painel administrativo
+          </div>
+          <h1
+            className="mt-2.5 m-0 font-display font-normal leading-none tracking-[-0.02em] text-ink"
+            style={{ fontSize: 44 }}
           >
-            <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">{count}</div>
-          </Link>
-        ))}
-      </div>
+            <span className="font-display italic text-accent">{statusCounts.total}</span> resposta{statusCounts.total === 1 ? "" : "s"} no total
+          </h1>
+          <p className="mt-3 max-w-[520px] font-sans text-[14px] text-ink-2">
+            Pendentes são entradas sem match na lista oficial — verifique e promova ou rejeite. Verificados já bateram com a lista.
+          </p>
+        </div>
 
-      {suggestions.length > 0 && (
-        <Card>
-          <CardTitle className="text-base">Sugestões pendentes ({suggestions.length})</CardTitle>
-          <CardDescription>
-            Moradores pediram esses interesses. Aprove (escolhendo a categoria) para adicionar ao catálogo, ou rejeite.
-          </CardDescription>
-          <div className="mt-4 space-y-3">
-            {suggestions.map((s) => (
-              <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <div className="font-medium text-slate-900">{s.name}</div>
-                  <div className="text-xs text-slate-500">
-                    {s.profiles ? `por ${s.profiles.full_name} (${s.profiles.unit})` : "anônimo"} ·{" "}
-                    {new Date(s.created_at).toLocaleDateString("pt-BR")}
+        {/* Status filter cards */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {(
+            [
+              ["Todos", "", statusCounts.total],
+              ["Verificados", "verified", statusCounts.verified],
+              ["Pendentes", "pending", statusCounts.pending],
+              ["Rejeitados", "rejected", statusCounts.rejected],
+            ] as Array<[string, string, number]>
+          ).map(([label, value, count]) => {
+            const active = (status ?? "") === value;
+            return (
+              <Link
+                key={label}
+                href={value ? `/admin?status=${value}` : "/admin"}
+                className={cn(
+                  "rounded-xl border px-4 py-3.5 transition",
+                  active ? "border-ink bg-surface" : "border-rule bg-surface hover:border-rule-strong",
+                )}
+                style={{ borderRadius: 12 }}
+              >
+                <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-ink-3">{label}</div>
+                <div
+                  className="mt-1 font-display font-normal leading-none tracking-[-0.02em] text-ink"
+                  style={{ fontSize: 32 }}
+                >
+                  {count}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        {suggestions.length > 0 && (
+          <Section
+            title="Sugestões pendentes"
+            badge={`${suggestions.length}`}
+            hint="Moradores pediram esses interesses. Aprove (escolha categoria) para adicionar ao catálogo, ou rejeite."
+          >
+            <div className="flex flex-col gap-2.5">
+              {suggestions.map((s) => (
+                <div
+                  key={s.id}
+                  className="rounded-xl border border-rule bg-surface-2 px-3.5 py-3"
+                  style={{ borderRadius: 12 }}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div className="font-sans text-[14px] font-semibold text-ink">{s.name}</div>
+                    <div className="font-mono text-[10.5px] tracking-[0.05em] text-ink-3">
+                      {s.profiles ? `por ${s.profiles.full_name} (${s.profiles.unit})` : "anônimo"} ·{" "}
+                      {new Date(s.created_at).toLocaleDateString("pt-BR")}
+                    </div>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <form action={approveSuggestionAction} className="flex flex-1 flex-wrap items-center gap-2">
+                      <input type="hidden" name="id" value={s.id} />
+                      <input type="hidden" name="name" value={s.name} />
+                      <select
+                        name="category"
+                        required
+                        defaultValue=""
+                        className="h-9 rounded-lg border border-rule bg-surface px-2.5 font-sans text-[13px] text-ink outline-none"
+                      >
+                        <option value="" disabled>
+                          Categoria…
+                        </option>
+                        {categories.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <button className="rounded-md bg-accent px-3 py-1.5 font-sans text-[12px] font-medium text-white hover:opacity-90">
+                        Aprovar
+                      </button>
+                    </form>
+                    <form action={rejectSuggestionAction}>
+                      <input type="hidden" name="id" value={s.id} />
+                      <button className="rounded-md border border-rule-strong bg-transparent px-3 py-1.5 font-sans text-[12px] font-medium text-ink hover:bg-surface">
+                        Rejeitar
+                      </button>
+                    </form>
                   </div>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <form action={approveSuggestionAction} className="flex flex-1 flex-wrap items-center gap-2">
-                    <input type="hidden" name="id" value={s.id} />
-                    <input type="hidden" name="name" value={s.name} />
-                    <select
-                      name="category"
-                      required
-                      defaultValue=""
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm"
-                    >
-                      <option value="" disabled>
-                        Categoria…
-                      </option>
-                      {categories.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">
-                      Aprovar
-                    </button>
-                  </form>
-                  <form action={rejectSuggestionAction}>
-                    <input type="hidden" name="id" value={s.id} />
-                    <button className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">
-                      Rejeitar
-                    </button>
-                  </form>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+              ))}
+            </div>
+          </Section>
+        )}
 
-      <Card>
-        <CardTitle className="text-base">Respostas</CardTitle>
-        <CardDescription>
-          Pendentes são entradas sem match na lista oficial — verifique e promova ou rejeite.
-        </CardDescription>
-
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                <th className="py-2 pr-3">Nome / Unidade</th>
-                <th className="py-2 pr-3">Perfil</th>
-                <th className="py-2 pr-3">Resp.</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2 pr-3">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-500">
-                    Nada por aqui ainda.
-                  </td>
+        <Section title="Respostas" hint={status ? `Filtrado: ${STATUS_LABEL[status] ?? status}` : "Todas as respostas registradas."}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-rule font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3">
+                  <th className="py-2.5 pr-3 font-normal">Nome / Unidade</th>
+                  <th className="py-2.5 pr-3 font-normal">Perfil</th>
+                  <th className="py-2.5 pr-3 font-normal">Resp.</th>
+                  <th className="py-2.5 pr-3 font-normal">Status</th>
+                  <th className="py-2.5 pr-3 font-normal">Ações</th>
                 </tr>
-              )}
-              {rows.map((r) => {
-                const ageLabel = AGE_BANDS.find((b) => b.value === r.age_band)?.label ?? r.age_band;
-                const genderLabel = GENDERS.find((g) => g.value === r.gender)?.label ?? r.gender;
-                const intCount = r.profile_interests?.length ?? 0;
-                const slotCount = r.availability?.length ?? 0;
-                return (
-                  <tr key={r.id} className="border-b border-slate-100 align-top">
-                    <td className="py-3 pr-3">
-                      <div className="font-medium text-slate-900">{r.full_name}</div>
-                      <div className="text-xs text-slate-500">{r.unit}</div>
-                    </td>
-                    <td className="py-3 pr-3 text-xs text-slate-600">
-                      {ageLabel}
-                      <br />
-                      {genderLabel}
-                    </td>
-                    <td className="py-3 pr-3 text-xs text-slate-600">
-                      {intCount} interesse(s)
-                      <br />
-                      {slotCount} hora(s)
-                    </td>
-                    <td className="py-3 pr-3">
-                      <span
-                        className={
-                          r.status === "verified"
-                            ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800"
-                            : r.status === "pending"
-                              ? "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
-                              : "rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800"
-                        }
-                      >
-                        {r.status}
-                      </span>
-                      {!r.submitted && <div className="mt-1 text-[10px] uppercase text-slate-400">não enviado</div>}
-                    </td>
-                    <td className="py-3 pr-3">
-                      <div className="flex flex-wrap gap-1">
-                        {r.status !== "verified" && (
-                          <form action={setProfileStatusAction}>
-                            <input type="hidden" name="id" value={r.id} />
-                            <input type="hidden" name="status" value="verified" />
-                            <button className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700">
-                              Verificar
-                            </button>
-                          </form>
-                        )}
-                        {r.status !== "rejected" && (
-                          <form action={setProfileStatusAction}>
-                            <input type="hidden" name="id" value={r.id} />
-                            <input type="hidden" name="status" value="rejected" />
-                            <button className="rounded-md bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-700">
-                              Rejeitar
-                            </button>
-                          </form>
-                        )}
-                        <form action={deleteProfileAction}>
-                          <input type="hidden" name="id" value={r.id} />
-                          <button className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
-                            Apagar
-                          </button>
-                        </form>
-                      </div>
+              </thead>
+              <tbody>
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center font-sans text-ink-3">
+                      Nada por aqui ainda.
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                )}
+                {rows.map((r) => {
+                  const ageLabel = AGE_BANDS.find((b) => b.value === r.age_band)?.label ?? r.age_band;
+                  const genderLabel = GENDERS.find((g) => g.value === r.gender)?.label ?? r.gender;
+                  const intCount = r.profile_interests?.length ?? 0;
+                  const slotCount = r.availability?.length ?? 0;
+                  return (
+                    <tr key={r.id} className="border-b border-rule align-top">
+                      <td className="py-3 pr-3">
+                        <div className="font-sans font-semibold text-ink">{r.full_name}</div>
+                        <div className="font-mono text-[11px] text-ink-3">{r.unit}</div>
+                      </td>
+                      <td className="py-3 pr-3 font-sans text-[12px] text-ink-2">
+                        {ageLabel}
+                        <br />
+                        <span className="text-ink-3">{genderLabel}</span>
+                      </td>
+                      <td className="py-3 pr-3 font-mono text-[11px] tabular-nums text-ink-2">
+                        {intCount} interesse{intCount === 1 ? "" : "s"}
+                        <br />
+                        <span className="text-ink-3">
+                          {slotCount} hora{slotCount === 1 ? "" : "s"}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <StatusTag status={r.status} />
+                        {!r.submitted && (
+                          <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-3">
+                            não enviado
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 pr-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {r.status !== "verified" && (
+                            <form action={setProfileStatusAction}>
+                              <input type="hidden" name="id" value={r.id} />
+                              <input type="hidden" name="status" value="verified" />
+                              <button className="rounded-md bg-accent px-2.5 py-1 font-sans text-[11.5px] font-medium text-white hover:opacity-90">
+                                Verificar
+                              </button>
+                            </form>
+                          )}
+                          {r.status !== "rejected" && (
+                            <form action={setProfileStatusAction}>
+                              <input type="hidden" name="id" value={r.id} />
+                              <input type="hidden" name="status" value="rejected" />
+                              <button className="rounded-md border border-rule-strong bg-transparent px-2.5 py-1 font-sans text-[11.5px] font-medium text-ink hover:bg-surface-2">
+                                Rejeitar
+                              </button>
+                            </form>
+                          )}
+                          <form action={deleteProfileAction}>
+                            <input type="hidden" name="id" value={r.id} />
+                            <button className="rounded-md border border-[color:var(--danger)]/40 bg-transparent px-2.5 py-1 font-sans text-[11.5px] font-medium text-[color:var(--danger)] hover:bg-[color:var(--danger)]/5">
+                              Apagar
+                            </button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      </div>
     </div>
+  );
+}
+
+function StatusTag({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    verified: "bg-accent-soft text-accent border-[color-mix(in_oklch,var(--accent)_25%,transparent)]",
+    pending: "bg-surface-2 text-ink-2 border-rule",
+    rejected: "bg-[color-mix(in_oklch,var(--danger)_8%,transparent)] text-[color:var(--danger)] border-[color-mix(in_oklch,var(--danger)_25%,transparent)]",
+  };
+  const label = STATUS_LABEL[status] ?? status;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2 py-[3px] font-sans text-[11px] font-medium",
+        map[status] ?? "bg-surface-2 text-ink-2 border-rule",
+      )}
+    >
+      {label}
+    </span>
   );
 }
