@@ -86,7 +86,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         ]}
       />
 
-      <div className="flex flex-col gap-6 px-8 pb-16 pt-7">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 pb-16 pt-7 md:px-8">
         {/* Hero */}
         <div className="grid items-end gap-7 md:grid-cols-[1.3fr_0.9fr]">
           <div>

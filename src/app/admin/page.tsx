@@ -85,7 +85,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
         }
       />
 
-      <div className="flex flex-col gap-6 px-8 pb-16 pt-7">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 pb-16 pt-7 md:px-8">
         <div>
           <div className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-3">
             Painel administrativo
