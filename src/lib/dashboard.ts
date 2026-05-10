@@ -3,8 +3,8 @@ import type { AgeBand, Gender } from "@/lib/types";
 
 export type DashboardFilters = {
   interestId?: string;
-  ageBand?: AgeBand;
-  gender?: Gender;
+  ageBands?: AgeBand[];
+  genders?: Gender[];
 };
 
 export type DashboardData = {
@@ -38,10 +38,12 @@ export async function loadDashboard(filters: DashboardFilters): Promise<Dashboar
   const totalProfiles = all.length;
 
   const matches = all.filter((p) => {
-    if (filters.ageBand && p.age_band !== filters.ageBand) return false;
-    if (filters.gender && p.gender !== filters.gender) return false;
+    if (filters.ageBands && filters.ageBands.length && !filters.ageBands.includes(p.age_band)) return false;
+    if (filters.genders && filters.genders.length && !filters.genders.includes(p.gender)) return false;
     if (filters.interestId) {
-      const has = (p.profile_interests ?? []).some((pi: { interest_id: string }) => pi.interest_id === filters.interestId);
+      const has = (p.profile_interests ?? []).some(
+        (pi: { interest_id: string }) => pi.interest_id === filters.interestId,
+      );
       if (!has) return false;
     }
     return true;
