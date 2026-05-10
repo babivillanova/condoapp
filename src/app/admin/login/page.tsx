@@ -24,7 +24,7 @@ export default async function AdminLogin({ searchParams }: { searchParams: Searc
         </div>
         {error === "invalid" && <p className="text-sm text-red-600">Credenciais inválidas.</p>}
         {error === "server" && <p className="text-sm text-red-600">Admin não configurado (env vars ADMIN_EMAIL / ADMIN_PASSWORD).</p>}
-        <Button type="submit" size="lg" className="w-full">Entrar</Button>
+        <Button type="submit">Entrar</Button>
       </form>
     </Card>
   );

@@ -71,7 +71,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
             Gerenciar lista
           </Link>
           <form action={logoutAdminAction}>
-            <Button type="submit" variant="ghost" size="sm">Sair</Button>
+            <Button type="submit" variant="ghost" full={false} className="h-9 px-3 text-[13px]">Sair</Button>
           </form>
         </div>
       </div>

@@ -3,212 +3,182 @@
 import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { availabilityAction } from "@/lib/actions";
-import { DAYS, HOURS, TURNOS } from "@/lib/types";
+import { DAYS, TURNOS } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 type Cell = `${number}:${number}`; // day:hour
 
 type Props = { initial: Cell[] };
 
+type CellAttr = `${number}:${string}`; // day:turnoLabel for drag detection
+
 export function AvailabilityGrid({ initial }: Props) {
   const [pending, startTransition] = useTransition();
-  const [selected, setSelected] = useState<Set<Cell>>(new Set(initial));
-  const dragMode = useRef<"add" | "remove" | null>(null);
+  const [slots, setSlots] = useState<Set<Cell>>(new Set(initial));
   const dragging = useRef(false);
+  const dragMode = useRef<"add" | "remove" | null>(null);
 
-  function key(day: number, hour: number): Cell {
-    return `${day}:${hour}` as Cell;
+  function turnoFilled(d: number, range: readonly [number, number]) {
+    for (let h = range[0]; h <= range[1]; h++) if (!slots.has(`${d}:${h}`)) return false;
+    return true;
   }
-
-  function apply(c: Cell, mode: "add" | "remove") {
-    setSelected((prev) => {
+  function turnoPartial(d: number, range: readonly [number, number]) {
+    for (let h = range[0]; h <= range[1]; h++) if (slots.has(`${d}:${h}`)) return true;
+    return false;
+  }
+  function setTurno(d: number, range: readonly [number, number], on: boolean) {
+    setSlots((prev) => {
       const next = new Set(prev);
-      if (mode === "add") next.add(c);
-      else next.delete(c);
+      for (let h = range[0]; h <= range[1]; h++) {
+        const k = `${d}:${h}` as Cell;
+        if (on) next.add(k);
+        else next.delete(k);
+      }
       return next;
     });
   }
-
-  function startDrag(c: Cell) {
+  function startDrag(d: number, range: readonly [number, number]) {
     dragging.current = true;
-    const mode: "add" | "remove" = selected.has(c) ? "remove" : "add";
-    dragMode.current = mode;
-    apply(c, mode);
+    const filled = turnoFilled(d, range);
+    dragMode.current = filled ? "remove" : "add";
+    setTurno(d, range, !filled);
   }
-
-  function dragOver(c: Cell) {
+  function dragOver(d: number, range: readonly [number, number]) {
     if (!dragging.current || !dragMode.current) return;
-    apply(c, dragMode.current);
+    setTurno(d, range, dragMode.current === "add");
   }
-
   function endDrag() {
     dragging.current = false;
     dragMode.current = null;
   }
 
-  function selectAll() {
-    const all: Cell[] = [];
-    for (const d of DAYS) for (const h of HOURS) all.push(key(d.value, h));
-    setSelected(new Set(all));
-  }
-
-  function clear() {
-    setSelected(new Set());
-  }
-
-  function selectTurno(rangeStart: number, rangeEnd: number) {
-    setSelected((prev) => {
+  function selectTurnoAll(range: readonly [number, number]) {
+    setSlots((prev) => {
       const next = new Set(prev);
-      for (const d of DAYS) for (let h = rangeStart; h <= rangeEnd; h++) next.add(key(d.value, h));
+      for (const d of DAYS) for (let h = range[0]; h <= range[1]; h++) next.add(`${d.value}:${h}` as Cell);
       return next;
     });
   }
-
-  function selectWeekend() {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const d of [0, 6]) for (const h of HOURS) next.add(key(d, h));
-      return next;
-    });
-  }
-
-  function toggleHourRow(hour: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      const allOn = DAYS.every((d) => next.has(key(d.value, hour)));
-      for (const d of DAYS) {
-        const c = key(d.value, hour);
-        if (allOn) next.delete(c);
-        else next.add(c);
-      }
-      return next;
-    });
-  }
-
-  function toggleDayCol(day: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      const allOn = HOURS.every((h) => next.has(key(day, h)));
-      for (const h of HOURS) {
-        const c = key(day, h);
-        if (allOn) next.delete(c);
-        else next.add(c);
-      }
-      return next;
-    });
+  function clearAll() {
+    setSlots(new Set());
   }
 
   function submit() {
     const fd = new FormData();
-    for (const c of selected) fd.append("slot", c);
+    for (const c of slots) fd.append("slot", c);
     startTransition(() => {
       availabilityAction(fd);
     });
   }
 
   return (
-    <div onMouseUp={endDrag} onMouseLeave={endDrag} onTouchEnd={endDrag}>
-      {/* Quick presets */}
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        <button type="button" onClick={selectAll} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200">
-          Tudo
-        </button>
-        <button type="button" onClick={selectWeekend} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200">
-          Fim de semana
-        </button>
+    <div onMouseUp={endDrag} onMouseLeave={endDrag} onTouchEnd={endDrag} className="px-5">
+      {/* presets */}
+      <div className="mb-[14px] flex flex-wrap gap-1.5">
         {TURNOS.map((t) => (
-          <button
-            key={t.label}
-            type="button"
-            onClick={() => selectTurno(t.range[0], t.range[1])}
-            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
-          >
-            {t.label} ({t.hint})
-          </button>
+          <PresetChip key={t.label} onClick={() => selectTurnoAll(t.range)}>
+            {t.label}
+            <span className="ml-1 font-mono text-ink-3 opacity-55">{t.hint}</span>
+          </PresetChip>
         ))}
-        <button type="button" onClick={clear} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200">
-          Limpar
-        </button>
-        <span className="ml-auto self-center text-xs text-slate-500">{selected.size}/168</span>
+        <PresetChip onClick={clearAll}>limpar</PresetChip>
       </div>
 
-      {/* Hint */}
-      <p className="mb-2 text-xs text-slate-500">
-        Toque (ou arraste) para marcar. Toque a hora para selecionar a linha inteira; toque o dia para a coluna.
-      </p>
-
-      <div className="overflow-x-auto">
-        <div className="grid select-none gap-[2px]" style={{ gridTemplateColumns: "auto repeat(7, minmax(36px, 1fr))" }}>
+      {/* grid 7 days × 4 turnos */}
+      <div className="rounded-2xl border border-rule bg-surface px-3 pt-3 pb-2.5" style={{ borderRadius: 14 }}>
+        <div
+          className="mb-1.5 grid gap-1"
+          style={{ gridTemplateColumns: "auto repeat(7, 1fr)" }}
+        >
           <div />
           {DAYS.map((d) => (
-            <button
-              type="button"
+            <div
               key={d.value}
-              onClick={() => toggleDayCol(d.value)}
-              className="pb-1.5 text-center text-[10px] font-semibold uppercase text-slate-500 hover:text-brand-700"
+              className="text-center font-mono text-[10px] tracking-[0.06em] text-ink-3"
             >
               {d.short}
-            </button>
+            </div>
           ))}
-
-          {HOURS.map((h) => {
-            const turnoBg =
-              h < 6 ? "bg-slate-50/60" : h < 12 ? "bg-amber-50/40" : h < 18 ? "bg-sky-50/40" : "bg-indigo-50/40";
-            return (
-              <div key={h} className="contents">
-                <button
-                  type="button"
-                  onClick={() => toggleHourRow(h)}
-                  className="pr-1.5 text-right text-[10px] font-medium tabular-nums text-slate-500 hover:text-brand-700"
-                >
-                  {String(h).padStart(2, "0")}h
-                </button>
-                {DAYS.map((d) => {
-                  const c = key(d.value, h);
-                  const sel = selected.has(c);
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        startDrag(c);
-                      }}
-                      onMouseEnter={() => dragOver(c)}
-                      onTouchStart={(e) => {
-                        e.preventDefault();
-                        startDrag(c);
-                      }}
-                      onTouchMove={(e) => {
-                        const touch = e.touches[0];
-                        if (!touch) return;
-                        const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
-                        const cellAttr = el?.getAttribute("data-cell") as Cell | null;
-                        if (cellAttr) dragOver(cellAttr);
-                      }}
-                      data-cell={c}
-                      className={cn(
-                        "h-7 rounded-sm border text-[10px] transition",
-                        sel
-                          ? "border-brand-600 bg-brand-500"
-                          : `border-slate-200 ${turnoBg} hover:border-brand-300`,
-                      )}
-                      aria-pressed={sel}
-                      aria-label={`${d.long} ${String(h).padStart(2, "0")}h`}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })}
         </div>
+
+        {TURNOS.map((t) => (
+          <div
+            key={t.label}
+            className="mb-1 grid gap-1"
+            style={{ gridTemplateColumns: "auto repeat(7, 1fr)" }}
+          >
+            <div className="flex min-w-[60px] flex-col justify-center pr-2 font-sans text-[11.5px] font-medium text-ink-2">
+              <span>{t.label}</span>
+              <span className="font-mono text-[9px] text-ink-3">{t.hint}</span>
+            </div>
+            {DAYS.map((d) => {
+              const filled = turnoFilled(d.value, t.range);
+              const partial = !filled && turnoPartial(d.value, t.range);
+              const cellAttr: CellAttr = `${d.value}:${t.label}`;
+              return (
+                <button
+                  key={d.value}
+                  type="button"
+                  data-cell={cellAttr}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    startDrag(d.value, t.range);
+                  }}
+                  onMouseEnter={() => dragOver(d.value, t.range)}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    startDrag(d.value, t.range);
+                  }}
+                  onTouchMove={(e) => {
+                    const touch = e.touches[0];
+                    if (!touch) return;
+                    const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+                    const attr = el?.getAttribute("data-cell") as CellAttr | null;
+                    if (!attr) return;
+                    const [day, lbl] = attr.split(":");
+                    const trn = TURNOS.find((x) => x.label === lbl);
+                    if (trn) dragOver(parseInt(day), trn.range);
+                  }}
+                  className={cn(
+                    "h-11 rounded-lg border transition",
+                    filled && "bg-accent border-accent",
+                    !filled && partial && "border-[color-mix(in_oklch,var(--accent)_50%,var(--rule))]",
+                    !filled && !partial && "bg-surface-2 border-rule",
+                  )}
+                  style={
+                    !filled && partial
+                      ? { background: "color-mix(in oklch, var(--accent) 35%, var(--surface-2))" }
+                      : undefined
+                  }
+                  aria-label={`${d.long} ${t.label}`}
+                />
+              );
+            })}
+          </div>
+        ))}
       </div>
 
+      <p className="mt-3 text-center font-mono text-[10.5px] tracking-[0.04em] text-ink-3">
+        {slots.size}/168 horas marcadas
+      </p>
+
       <div className="mt-6">
-        <Button type="button" size="lg" className="w-full" onClick={submit} disabled={pending}>
-          {pending ? "Salvando..." : "Continuar"}
+        <Button type="button" onClick={submit} disabled={pending}>
+          {pending ? "Salvando..." : "Continuar →"}
         </Button>
       </div>
     </div>
+  );
+}
+
+function PresetChip({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 cursor-pointer rounded-full border border-rule bg-transparent px-3 py-1.5 font-sans text-[12px] font-medium text-ink-2 transition hover:border-rule-strong"
+    >
+      {children}
+    </button>
   );
 }

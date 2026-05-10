@@ -1,8 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  --bg: #f5efe4;
+  --surface: #fbf7ee;
+  --surface-2: #efe7d5;
+  --ink: #1c1a17;
+  --ink-2: #4a443d;
+  --ink-3: #7a7166;
+  --ink-4: #b3a896;
+  --rule: rgba(28, 26, 23, 0.10);
+  --rule-strong: rgba(28, 26, 23, 0.25);
+  --accent: oklch(0.62 0.13 38);
+  --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
+  --danger: oklch(0.55 0.18 28);
+
+  --display: 'Instrument Serif', 'Newsreader', Georgia, serif;
+  --sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
   color-scheme: light;
 }
 
@@ -11,9 +30,29 @@ html, body {
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.fade-in {
+  animation: fadeIn 0.18s ease-out;
 }

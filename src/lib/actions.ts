@@ -129,7 +129,7 @@ export async function submitAction(): Promise<void> {
   const { error } = await sb.from("profiles").update({ submitted: true }).eq("id", profileId);
   if (error) throw error;
   revalidatePath("/dashboard");
-  redirect("/dashboard?submitted=1");
+  redirect("/success");
 }
 
 export async function deleteMyDataAction(): Promise<void> {

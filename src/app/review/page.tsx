@@ -1,14 +1,35 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ProgressBar } from "@/components/progress-bar";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import { StepHeader } from "@/components/step-header";
+import { StickyFooter } from "@/components/sticky-footer";
+import { TitleBlock, Italic } from "@/components/title-block";
+import { MiniHeatmap } from "@/components/mini-heatmap";
 import { deleteMyDataAction, submitAction } from "@/lib/actions";
 import { getSessionProfileId } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
-import { AFFINITIES, AGE_BANDS, DAYS, GENDERS, HOURS } from "@/lib/types";
+import { AFFINITIES, AGE_BANDS, GENDERS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+const AGE_LABEL_SHORT: Record<string, string> = {
+  "0-3": "Bebê",
+  "4-7": "Criança peq.",
+  "8-12": "Criança",
+  "13-17": "Adolescente",
+  "18-29": "Jovem adulto",
+  "30-49": "Adulto",
+  "50+": "Adulto 50+",
+};
+const AGE_RANGES: Record<string, string> = {
+  "0-3": "0–3",
+  "4-7": "4–7",
+  "8-12": "8–12",
+  "13-17": "13–17",
+  "18-29": "18–29",
+  "30-49": "30–49",
+  "50+": "50+",
+};
 
 export default async function ReviewPage() {
   const profileId = await getSessionProfileId();
@@ -16,7 +37,11 @@ export default async function ReviewPage() {
 
   const sb = supabaseAdmin();
   const [{ data: profile }, { data: ints }, { data: avail }] = await Promise.all([
-    sb.from("profiles").select("full_name, unit, age_band, gender, status, submitted").eq("id", profileId).maybeSingle(),
+    sb
+      .from("profiles")
+      .select("full_name, unit, age_band, gender, status, submitted")
+      .eq("id", profileId)
+      .maybeSingle(),
     sb
       .from("profile_interests")
       .select("affinity, interests:interest_id (name, category)")
@@ -26,7 +51,8 @@ export default async function ReviewPage() {
 
   if (!profile) redirect("/identify");
 
-  const ageLabel = AGE_BANDS.find((b) => b.value === profile.age_band)?.label ?? profile.age_band;
+  const ageRange = AGE_RANGES[profile.age_band] ?? profile.age_band;
+  const ageLabel = AGE_LABEL_SHORT[profile.age_band] ?? profile.age_band;
   const genderLabel = GENDERS.find((g) => g.value === profile.gender)?.label ?? profile.gender;
   const slotSet = new Set((avail ?? []).map((a) => `${a.day_of_week}:${a.hour}`));
 
@@ -40,115 +66,124 @@ export default async function ReviewPage() {
     intsByCat.set(i.category, arr);
   }
 
-  function affinityLabel(a: string) {
-    return AFFINITIES.find((x) => x.value === a)?.label ?? a;
-  }
+  const condoName = process.env.NEXT_PUBLIC_CONDO_NAME ?? "Meu Condomínio";
 
   return (
-    <div>
-      <ProgressBar current="review" />
-      <Card>
-        <CardTitle>Revisão</CardTitle>
-        <CardDescription>Confira tudo antes de enviar. Você pode voltar a editar a qualquer momento.</CardDescription>
+    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col">
+      <StepHeader current="review" condoName={condoName} />
+      <TitleBlock
+        eyebrow="05 · Revisão"
+        title={
+          <>
+            Quase lá — <Italic>tudo certo?</Italic>
+          </>
+        }
+        sub="Confira tudo. Pode voltar e editar a qualquer hora — nada fica trancado."
+      />
 
-        <section className="mt-6 space-y-4">
-          <div className="rounded-xl bg-slate-50 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="text-sm text-slate-500">Identificação</div>
-                <div className="text-base font-semibold text-slate-900">{profile.full_name}</div>
-                <div className="text-sm text-slate-700">{profile.unit}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {ageLabel} · {genderLabel}
-                </div>
-              </div>
-              <Link href="/identify" className="text-sm font-medium text-brand-700 hover:underline">
-                Editar
-              </Link>
-            </div>
+      <div className="flex flex-1 flex-col gap-3 px-5">
+        {/* Identification */}
+        <ReviewCard label="Identificação" editHref="/identify">
+          <div className="font-display text-[22px] leading-[1.1] text-ink">{profile.full_name}</div>
+          <div className="mt-1 font-mono text-[12px] text-ink-2">{profile.unit}</div>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <Tag>
+              {ageLabel} <span className="opacity-55">{ageRange}</span>
+            </Tag>
+            <Tag>{genderLabel}</Tag>
+            {profile.status === "verified" && <Tag accent>✓ verificado</Tag>}
           </div>
+        </ReviewCard>
 
-          <div className="rounded-xl bg-slate-50 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm text-slate-500">Interesses ({ints?.length ?? 0})</div>
-              <Link href="/interests" className="text-sm font-medium text-brand-700 hover:underline">
-                Editar
-              </Link>
-            </div>
-            {intsByCat.size === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum selecionado.</p>
-            ) : (
-              <div className="space-y-3">
-                {Array.from(intsByCat.entries()).map(([cat, list]) => (
-                  <div key={cat}>
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{cat}</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {list.map((it) => (
-                        <span
-                          key={it.name}
-                          className="rounded-full bg-white px-2.5 py-1 text-xs ring-1 ring-slate-200"
-                        >
-                          {it.name}
-                          {it.affinity && (
-                            <span className="ml-1 text-brand-700">· {affinityLabel(it.affinity)}</span>
-                          )}
-                        </span>
-                      ))}
-                    </div>
+        {/* Interests */}
+        <ReviewCard label={`Interesses (${ints?.length ?? 0})`} editHref="/interests">
+          {intsByCat.size === 0 ? (
+            <div className="font-sans text-[13px] text-ink-3">Nenhum selecionado.</div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {Array.from(intsByCat.entries()).map(([cat, list]) => (
+                <div key={cat}>
+                  <div className="mb-1.5 font-mono text-[9.5px] uppercase tracking-[0.18em] text-ink-3">
+                    {cat}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-xl bg-slate-50 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm text-slate-500">Disponibilidade ({slotSet.size}/168)</div>
-              <Link href="/availability" className="text-sm font-medium text-brand-700 hover:underline">
-                Editar
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <div className="grid gap-[2px]" style={{ gridTemplateColumns: "auto repeat(7, minmax(28px, 1fr))" }}>
-                <div />
-                {DAYS.map((d) => (
-                  <div key={d.value} className="pb-1 text-center text-[10px] font-semibold uppercase text-slate-500">
-                    {d.short}
-                  </div>
-                ))}
-                {HOURS.map((h) => (
-                  <div key={h} className="contents">
-                    <div className="pr-1 text-right text-[9px] tabular-nums text-slate-500">
-                      {String(h).padStart(2, "0")}
-                    </div>
-                    {DAYS.map((d) => {
-                      const ok = slotSet.has(`${d.value}:${h}`);
+                  <div className="flex flex-wrap gap-1">
+                    {list.map((it) => {
+                      const aff = AFFINITIES.find((a) => a.value === it.affinity);
                       return (
-                        <div
-                          key={d.value}
-                          className={ok ? "h-4 rounded-sm bg-brand-500" : "h-4 rounded-sm bg-slate-200"}
-                        />
+                        <Tag key={it.name} small>
+                          {it.name}
+                          {aff && (
+                            <span className="ml-1.5 font-mono text-[9px] font-semibold text-accent">
+                              {aff.short}
+                            </span>
+                          )}
+                        </Tag>
                       );
                     })}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          </div>
-        </section>
+          )}
+        </ReviewCard>
 
-        <form action={submitAction} className="mt-6">
-          <Button type="submit" size="lg" className="w-full">
-            {profile.submitted ? "Atualizar minhas respostas" : "Enviar"}
-          </Button>
+        {/* Availability */}
+        <ReviewCard label={`Disponibilidade (${slotSet.size}/168)`} editHref="/availability">
+          <MiniHeatmap slotSet={slotSet} />
+        </ReviewCard>
+      </div>
+
+      <StickyFooter>
+        <form action={submitAction}>
+          <Button type="submit">{profile.submitted ? "Atualizar respostas →" : "Enviar respostas →"}</Button>
         </form>
-
-        <form action={deleteMyDataAction} className="mt-3">
-          <button type="submit" className="w-full text-sm text-slate-500 hover:text-red-600">
+        <form action={deleteMyDataAction}>
+          <button
+            type="submit"
+            className="mt-2.5 w-full cursor-pointer border-0 bg-transparent p-1.5 font-sans text-[12px] text-ink-3 hover:text-[color:var(--danger)]"
+          >
             Apagar todas as minhas respostas
           </button>
         </form>
-      </Card>
+      </StickyFooter>
     </div>
+  );
+}
+
+function ReviewCard({
+  label,
+  editHref,
+  children,
+}: {
+  label: string;
+  editHref: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-rule bg-surface px-4 py-[14px]" style={{ borderRadius: 14 }}>
+      <div className="mb-2.5 flex items-center justify-between">
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-3">{label}</span>
+        <Link href={editHref} className="font-sans text-[12px] font-semibold text-accent">
+          editar
+        </Link>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Tag({ children, accent, small }: { children: React.ReactNode; accent?: boolean; small?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center whitespace-nowrap rounded-full border font-sans font-medium ${
+        small ? "px-2 py-[3px] text-[11.5px]" : "px-2.5 py-1 text-[12px]"
+      } ${
+        accent
+          ? "border-[color-mix(in_oklch,var(--accent)_25%,transparent)] bg-accent-soft text-accent"
+          : "border-rule bg-surface-2 text-ink-2"
+      }`}
+    >
+      {children}
+    </span>
   );
 }

@@ -1,61 +1,98 @@
-import { DAYS, HOURS } from "@/lib/types";
+import { DAYS } from "@/lib/types";
 
 type Props = { data: number[][] }; // [day][hour]
 
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
 export function Heatmap({ data }: Props) {
   let max = 0;
-  for (const row of data) for (const v of row) if (v > max) max = v;
-
-  function shade(v: number) {
-    if (max === 0) return "rgba(59,118,246,0.05)";
-    const pct = v / max;
-    const alpha = 0.08 + pct * 0.85;
-    return `rgba(59,118,246,${alpha.toFixed(3)})`;
+  let peak = { day: 0, hour: 0, value: 0 };
+  for (let d = 0; d < data.length; d++) {
+    for (let h = 0; h < data[d].length; h++) {
+      const v = data[d][h];
+      if (v > max) max = v;
+      if (v > peak.value) peak = { day: d, hour: h, value: v };
+    }
   }
+  const safeMax = max || 1;
 
   return (
-    <div className="overflow-x-auto">
+    <div>
+      {/* Hour labels — every 6 */}
       <div
-        className="grid gap-[2px]"
-        style={{ gridTemplateColumns: "auto repeat(7, minmax(36px, 1fr))" }}
+        className="mb-1 grid"
+        style={{ gridTemplateColumns: "auto repeat(24, 1fr)", gap: 2 }}
       >
         <div />
-        {DAYS.map((d) => (
-          <div key={d.value} className="pb-1.5 text-center text-[10px] font-semibold uppercase text-slate-500">
-            {d.short}
-          </div>
-        ))}
         {HOURS.map((h) => (
-          <div key={h} className="contents">
-            <div className="pr-1.5 text-right text-[10px] font-medium tabular-nums text-slate-500">
-              {String(h).padStart(2, "0")}h
-            </div>
-            {DAYS.map((d) => {
-              const v = data[d.value][h];
-              return (
-                <div
-                  key={d.value}
-                  className="flex h-7 items-center justify-center rounded-sm border border-slate-200 text-[10px] font-semibold text-slate-800"
-                  style={{ background: shade(v) }}
-                  title={`${d.long} ${String(h).padStart(2, "0")}h: ${v} pessoa(s)`}
-                >
-                  {v > 0 ? v : ""}
-                </div>
-              );
-            })}
+          <div
+            key={h}
+            className="text-center font-mono text-[8.5px] tracking-[0.04em] text-ink-3"
+          >
+            {h % 6 === 0 ? String(h).padStart(2, "0") : "·"}
           </div>
         ))}
       </div>
-      {max > 0 && (
-        <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-          <span>0</span>
-          <div
-            className="h-2 flex-1 rounded-full"
-            style={{ background: "linear-gradient(to right, rgba(59,118,246,0.08), rgba(59,118,246,0.93))" }}
-          />
-          <span>{max}</span>
+
+      {DAYS.map((d) => (
+        <div
+          key={d.value}
+          className="mb-[2px] grid"
+          style={{ gridTemplateColumns: "auto repeat(24, 1fr)", gap: 2 }}
+        >
+          <div className="flex min-w-[32px] items-center justify-end pr-2 font-mono text-[10px] tracking-[0.05em] text-ink-3">
+            {d.short}
+          </div>
+          {HOURS.map((h) => {
+            const v = data[d.value][h];
+            const t = Math.max(0, Math.min(1, v / safeMax));
+            const lowKey = t < 0.06;
+            const bg = lowKey
+              ? "var(--surface-2)"
+              : `color-mix(in oklch, var(--accent) ${Math.round(t * 92)}%, var(--surface-2))`;
+            return (
+              <div
+                key={h}
+                title={`${d.short} ${String(h).padStart(2, "0")}h · ${v} pessoa(s)`}
+                className="rounded-[3px]"
+                style={{
+                  height: 22,
+                  background: bg,
+                  border: lowKey ? "1px solid var(--rule)" : "none",
+                }}
+              />
+            );
+          })}
         </div>
-      )}
+      ))}
+
+      {/* Legend + peak */}
+      <div className="mt-3.5 flex items-center gap-2.5 font-mono text-[10px] tracking-[0.06em] text-ink-3">
+        <span>menos</span>
+        <div className="flex gap-[2px]">
+          {[0.05, 0.2, 0.4, 0.6, 0.8, 1].map((t) => (
+            <div
+              key={t}
+              className="rounded-[2px]"
+              style={{
+                width: 14,
+                height: 12,
+                background:
+                  t < 0.1
+                    ? "var(--surface-2)"
+                    : `color-mix(in oklch, var(--accent) ${Math.round(t * 92)}%, var(--surface-2))`,
+                border: t < 0.1 ? "1px solid var(--rule)" : "none",
+              }}
+            />
+          ))}
+        </div>
+        <span>mais</span>
+        {peak.value > 0 && (
+          <span className="ml-auto">
+            pico: {DAYS[peak.day].short.toLowerCase()} {String(peak.hour).padStart(2, "0")}h · {peak.value} vizinhos
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -56,7 +56,7 @@ export default async function RosterPage() {
             className="w-full rounded-xl border border-slate-200 bg-white p-3 font-mono text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             placeholder={"Nome, Unidade\nMaria da Silva, Bloco A — Apto 302\nJoão Souza, Bloco B — Apto 101"}
           />
-          <Button type="submit" variant="secondary">Importar</Button>
+          <Button type="submit" variant="ghost" full={false}>Importar</Button>
         </form>
       </Card>
 

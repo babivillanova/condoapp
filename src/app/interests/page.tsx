@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { ProgressBar } from "@/components/progress-bar";
-import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import { StepHeader } from "@/components/step-header";
+import { TitleBlock, Italic } from "@/components/title-block";
 import { InterestPicker } from "@/components/interest-picker";
 import { SuggestInterest } from "@/components/suggest-interest";
+import { Card } from "@/components/ui/card";
 import { getSessionProfileId } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { Affinity, Interest } from "@/lib/types";
@@ -28,27 +29,28 @@ export default async function InterestsPage({ searchParams }: { searchParams: Se
   for (const r of selData ?? []) affinityById[r.interest_id as string] = r.affinity as Affinity;
 
   const suggestedState = sp.suggested === "1" ? "ok" : sp.suggested === "invalid" ? "invalid" : null;
+  const condoName = process.env.NEXT_PUBLIC_CONDO_NAME ?? "Meu Condomínio";
 
   return (
-    <div className="space-y-4">
-      <ProgressBar current="interests" />
-      <Card>
-        <CardTitle>O que te interessa?</CardTitle>
-        <CardDescription>
-          Toque pra selecionar. Quando estiver selecionado, toque o nível para alternar:
-          {" "}<strong>I</strong> Iniciante · <strong>II</strong> Intermediário · <strong>III</strong> Avançado.
-        </CardDescription>
-        <div className="mt-6">
-          <InterestPicker catalog={catalog} selectedIds={selectedIds} affinityById={affinityById} />
-        </div>
-      </Card>
+    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col">
+      <StepHeader current="interests" condoName={condoName} />
+      <TitleBlock
+        eyebrow="03 · Interesses"
+        title={
+          <>
+            O que te <Italic>interessa?</Italic>
+          </>
+        }
+        sub="Escolha tudo que te chama. Toque o nível (I → II → III) pra dizer o quanto manja."
+      />
 
-      <Card>
-        <CardTitle className="text-base">Sugerir um novo interesse</CardTitle>
-        <div className="mt-3">
+      <InterestPicker catalog={catalog} selectedIds={selectedIds} affinityById={affinityById} />
+
+      <div className="px-5 pb-6">
+        <Card>
           <SuggestInterest initialState={suggestedState} />
-        </div>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
