@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import type { AgeBand, Gender } from "@/lib/types";
 
 export type DashboardFilters = {
-  interestId?: string;
+  interestIds?: string[];
   ageBands?: AgeBand[];
   genders?: Gender[];
 };
@@ -37,13 +37,12 @@ export async function loadDashboard(filters: DashboardFilters): Promise<Dashboar
   const all = (profiles ?? []) as any[];
   const totalProfiles = all.length;
 
+  const interestSet = new Set(filters.interestIds ?? []);
   const matches = all.filter((p) => {
     if (filters.ageBands && filters.ageBands.length && !filters.ageBands.includes(p.age_band)) return false;
     if (filters.genders && filters.genders.length && !filters.genders.includes(p.gender)) return false;
-    if (filters.interestId) {
-      const has = (p.profile_interests ?? []).some(
-        (pi: { interest_id: string }) => pi.interest_id === filters.interestId,
-      );
+    if (interestSet.size) {
+      const has = (p.profile_interests ?? []).some((pi: { interest_id: string }) => interestSet.has(pi.interest_id));
       if (!has) return false;
     }
     return true;

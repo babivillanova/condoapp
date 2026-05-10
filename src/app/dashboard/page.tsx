@@ -30,9 +30,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const genderList = GENDERS.map((g) => g.value);
   const ageBands = parseList<AgeBand>(sp.age, ageList);
   const genders = parseList<Gender>(sp.gender, genderList);
-  const interestId = sp.interest || undefined;
+  const interestIds = (sp.interest ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-  const data = await loadDashboard({ interestId, ageBands, genders });
+  const data = await loadDashboard({ interestIds, ageBands, genders });
 
   // Helpers para construir URLs preservando os outros filtros
   function paramsWithout(keys: string[]) {
@@ -53,24 +53,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     const s = p.toString();
     return s ? `/dashboard?${s}` : "/dashboard";
   }
-  function toggleListUrl(field: "age" | "gender", value: string) {
-    const current = field === "age" ? ageBands : genders;
-    const next = (current as string[]).includes(value)
-      ? (current as string[]).filter((v) => v !== value)
-      : [...(current as string[]), value];
+  function toggleListUrl(field: "age" | "gender" | "interest", value: string) {
+    const current =
+      field === "age" ? (ageBands as string[]) : field === "gender" ? (genders as string[]) : interestIds;
+    const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
     return urlWith({ [field]: next.length ? next.join(",") : null });
   }
 
   const paramsString = (() => {
     const p = new URLSearchParams();
-    if (interestId) p.set("interest", interestId);
+    if (interestIds.length) p.set("interest", interestIds.join(","));
     if (ageBands.length) p.set("age", ageBands.join(","));
     if (genders.length) p.set("gender", genders.join(","));
     return p.toString();
   })();
 
-  const selectedInterest = data.interests.find((i) => i.id === interestId);
-  const hasFilters = Boolean(interestId) || ageBands.length > 0 || genders.length > 0;
+  const selectedInterests = interestIds
+    .map((id) => data.interests.find((i) => i.id === id))
+    .filter((x): x is NonNullable<typeof x> => !!x);
+  const hasFilters = interestIds.length > 0 || ageBands.length > 0 || genders.length > 0;
 
   return (
     <div className="space-y-6">
@@ -98,8 +99,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <div className="mt-4 space-y-5">
           {/* Interest filter (searchable) */}
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase text-slate-500">Interesse</div>
-            <InterestFilter interests={data.interests} selectedId={interestId} paramsString={paramsString} />
+            <div className="mb-2 text-xs font-semibold uppercase text-slate-500">
+              Interesse {interestIds.length > 0 && <span className="text-slate-400">({interestIds.length})</span>}
+            </div>
+            <InterestFilter interests={data.interests} selectedIds={interestIds} paramsString={paramsString} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -159,16 +162,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           {hasFilters && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3">
               <span className="text-xs font-semibold uppercase text-slate-500">Ativos:</span>
-              {selectedInterest && (
+              {selectedInterests.map((i) => (
                 <Link
-                  href={urlWith({ interest: null })}
+                  key={i.id}
+                  href={toggleListUrl("interest", i.id)}
                   scroll={false}
                   className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-medium text-white"
                 >
-                  {selectedInterest.name}
+                  {i.name}
                   <span className="opacity-70">×</span>
                 </Link>
-              )}
+              ))}
               {ageBands.map((v) => {
                 const label = AGE_BANDS.find((b) => b.value === v)?.label ?? v;
                 return (
@@ -212,10 +216,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <Card>
         <CardTitle className="text-base">
           Disponibilidade
-          {selectedInterest ? ` · ${selectedInterest.name}` : ""}
+          {selectedInterests.length === 1 && ` · ${selectedInterests[0].name}`}
+          {selectedInterests.length > 1 && ` · ${selectedInterests.length} interesses`}
         </CardTitle>
         <CardDescription>
           Quanto mais escuro, mais gente livre. {data.totalRespondents} pessoa(s) considerada(s) com os filtros atuais.
+          {selectedInterests.length > 1 && " Pessoas com interesse em qualquer um dos itens selecionados."}
         </CardDescription>
         <div className="mt-4">
           <Heatmap data={data.heatmap} />
@@ -229,12 +235,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           {data.rankings.length === 0 && <p className="text-sm text-slate-500">Sem dados para esse recorte.</p>}
           {data.rankings.slice(0, 15).map((r, i) => {
             const pct = data.rankings[0]?.count ? (r.count / data.rankings[0].count) * 100 : 0;
+            const active = interestIds.includes(r.id);
             return (
               <Link
                 key={r.id}
-                href={urlWith({ interest: r.id })}
+                href={toggleListUrl("interest", r.id)}
                 scroll={false}
-                className="flex items-center gap-3 rounded-lg p-1 hover:bg-slate-50"
+                className={cn(
+                  "flex items-center gap-3 rounded-lg p-1 hover:bg-slate-50",
+                  active && "bg-brand-50",
+                )}
               >
                 <span className="w-5 text-right text-xs font-semibold text-slate-400">{i + 1}</span>
                 <div className="flex-1">
