@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import type { AgeBand, Gender, TimeSlot } from "@/lib/types";
+import type { AgeBand, Gender } from "@/lib/types";
 
 export type DashboardFilters = {
   interestId?: string;
@@ -11,14 +11,12 @@ export type DashboardData = {
   totalProfiles: number;
   totalRespondents: number;
   rankings: Array<{ id: string; name: string; category: string; count: number }>;
-  heatmap: number[][]; // [day 0-6][slot 0-3] -> count
+  heatmap: number[][]; // [day 0-6][hour 0-23] -> count
   ageBreakdown: Record<AgeBand, number>;
   genderBreakdown: Record<Gender, number>;
   categories: string[];
   interests: Array<{ id: string; name: string; category: string }>;
 };
-
-const SLOTS: TimeSlot[] = ["morning", "afternoon", "evening", "dawn"];
 
 export async function loadDashboard(filters: DashboardFilters): Promise<DashboardData> {
   const sb = supabaseAdmin();
@@ -29,7 +27,7 @@ export async function loadDashboard(filters: DashboardFilters): Promise<Dashboar
       .select(`
         id, age_band, gender,
         profile_interests ( interest_id ),
-        availability ( day_of_week, time_slot )
+        availability ( day_of_week, hour )
       `)
       .eq("submitted", true),
     sb.from("interests").select("id, name, category").eq("active", true).order("category").order("sort_order"),
@@ -68,14 +66,14 @@ export async function loadDashboard(filters: DashboardFilters): Promise<Dashboar
     .filter((x): x is NonNullable<typeof x> => x !== null)
     .sort((a, b) => b.count - a.count);
 
-  const heatmap: number[][] = Array.from({ length: 7 }, () => Array(SLOTS.length).fill(0));
+  const heatmap: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
   for (const p of matches) {
     for (const a of p.availability ?? []) {
-      const slotIdx = SLOTS.indexOf(a.time_slot as TimeSlot);
-      if (slotIdx < 0) continue;
       const dow = a.day_of_week as number;
+      const hour = a.hour as number;
       if (dow < 0 || dow > 6) continue;
-      heatmap[dow][slotIdx] += 1;
+      if (hour < 0 || hour > 23) continue;
+      heatmap[dow][hour] += 1;
     }
   }
 

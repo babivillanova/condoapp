@@ -6,7 +6,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { deleteMyDataAction, submitAction } from "@/lib/actions";
 import { getSessionProfileId } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
-import { AGE_BANDS, DAYS, GENDERS, TIME_SLOTS } from "@/lib/types";
+import { AFFINITIES, AGE_BANDS, DAYS, GENDERS, HOURS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -21,14 +21,14 @@ export default async function ReviewPage() {
       .from("profile_interests")
       .select("affinity, interests:interest_id (name, category)")
       .eq("profile_id", profileId),
-    sb.from("availability").select("day_of_week, time_slot").eq("profile_id", profileId),
+    sb.from("availability").select("day_of_week, hour").eq("profile_id", profileId),
   ]);
 
   if (!profile) redirect("/identify");
 
   const ageLabel = AGE_BANDS.find((b) => b.value === profile.age_band)?.label ?? profile.age_band;
   const genderLabel = GENDERS.find((g) => g.value === profile.gender)?.label ?? profile.gender;
-  const slotSet = new Set((avail ?? []).map((a) => `${a.day_of_week}:${a.time_slot}`));
+  const slotSet = new Set((avail ?? []).map((a) => `${a.day_of_week}:${a.hour}`));
 
   const intsByCat = new Map<string, Array<{ name: string; affinity: string }>>();
   for (const r of ints ?? []) {
@@ -40,12 +40,16 @@ export default async function ReviewPage() {
     intsByCat.set(i.category, arr);
   }
 
+  function affinityLabel(a: string) {
+    return AFFINITIES.find((x) => x.value === a)?.label ?? a;
+  }
+
   return (
     <div>
       <ProgressBar current="review" />
       <Card>
         <CardTitle>Revisão</CardTitle>
-        <CardDescription>Confira tudo antes de enviar. Você pode voltar a editar qualquer momento.</CardDescription>
+        <CardDescription>Confira tudo antes de enviar. Você pode voltar a editar a qualquer momento.</CardDescription>
 
         <section className="mt-6 space-y-4">
           <div className="rounded-xl bg-slate-50 p-4">
@@ -80,10 +84,13 @@ export default async function ReviewPage() {
                     <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{cat}</div>
                     <div className="flex flex-wrap gap-1.5">
                       {list.map((it) => (
-                        <span key={it.name} className="rounded-full bg-white px-2.5 py-1 text-xs ring-1 ring-slate-200">
+                        <span
+                          key={it.name}
+                          className="rounded-full bg-white px-2.5 py-1 text-xs ring-1 ring-slate-200"
+                        >
                           {it.name}
-                          {it.affinity !== "curious" && (
-                            <span className="ml-1 text-brand-700">· {it.affinity === "teacher" ? "ensino" : "pratico"}</span>
+                          {it.affinity && (
+                            <span className="ml-1 text-brand-700">· {affinityLabel(it.affinity)}</span>
                           )}
                         </span>
                       ))}
@@ -96,45 +103,36 @@ export default async function ReviewPage() {
 
           <div className="rounded-xl bg-slate-50 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm text-slate-500">Disponibilidade ({slotSet.size}/28)</div>
+              <div className="text-sm text-slate-500">Disponibilidade ({slotSet.size}/168)</div>
               <Link href="/availability" className="text-sm font-medium text-brand-700 hover:underline">
                 Editar
               </Link>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-center text-xs">
-                <thead>
-                  <tr>
-                    <th />
-                    {DAYS.map((d) => (
-                      <th key={d.value} className="px-1 py-1 font-semibold text-slate-500">
-                        {d.short}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {TIME_SLOTS.map((t) => (
-                    <tr key={t.value}>
-                      <td className="py-1 pr-2 text-right text-slate-600">{t.label}</td>
-                      {DAYS.map((d) => {
-                        const ok = slotSet.has(`${d.value}:${t.value}`);
-                        return (
-                          <td key={d.value} className="px-1 py-1">
-                            <div
-                              className={
-                                ok
-                                  ? "mx-auto h-5 w-5 rounded-md bg-brand-500"
-                                  : "mx-auto h-5 w-5 rounded-md bg-slate-200"
-                              }
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="grid gap-[2px]" style={{ gridTemplateColumns: "auto repeat(7, minmax(28px, 1fr))" }}>
+                <div />
+                {DAYS.map((d) => (
+                  <div key={d.value} className="pb-1 text-center text-[10px] font-semibold uppercase text-slate-500">
+                    {d.short}
+                  </div>
+                ))}
+                {HOURS.map((h) => (
+                  <div key={h} className="contents">
+                    <div className="pr-1 text-right text-[9px] tabular-nums text-slate-500">
+                      {String(h).padStart(2, "0")}
+                    </div>
+                    {DAYS.map((d) => {
+                      const ok = slotSet.has(`${d.value}:${h}`);
+                      return (
+                        <div
+                          key={d.value}
+                          className={ok ? "h-4 rounded-sm bg-brand-500" : "h-4 rounded-sm bg-slate-200"}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>

@@ -4,7 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { isAdmin } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
-import { deleteProfileAction, logoutAdminAction, setProfileStatusAction } from "@/lib/admin-actions";
+import {
+  approveSuggestionAction,
+  deleteProfileAction,
+  logoutAdminAction,
+  rejectSuggestionAction,
+  setProfileStatusAction,
+} from "@/lib/admin-actions";
 import { AGE_BANDS, GENDERS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -27,13 +33,26 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
   if (status && ["verified", "pending", "rejected"].includes(status)) {
     q = q.eq("status", status);
   }
-  const { data } = await q;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = (data ?? []) as any[];
+  const [{ data: profilesData }, { data: countsData, count: totalCount }, { data: suggData }, { data: catsData }] =
+    await Promise.all([
+      q,
+      sb.from("profiles").select("status", { count: "exact" }),
+      sb
+        .from("interest_suggestions")
+        .select("id, name, created_at, profile_id, profiles:profile_id (full_name, unit)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      sb.from("interests").select("category").eq("active", true),
+    ]);
 
-  const counts = await sb.from("profiles").select("status", { count: "exact" });
-  const statusCounts = { verified: 0, pending: 0, rejected: 0, total: counts.count ?? 0 };
-  for (const r of (counts.data ?? []) as Array<{ status: string }>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = (profilesData ?? []) as any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const suggestions = (suggData ?? []) as any[];
+  const categories = Array.from(new Set((catsData ?? []).map((c) => c.category as string))).sort();
+
+  const statusCounts = { verified: 0, pending: 0, rejected: 0, total: totalCount ?? 0 };
+  for (const r of (countsData ?? []) as Array<{ status: string }>) {
     if (r.status in statusCounts) (statusCounts as Record<string, number>)[r.status] += 1;
   }
 
@@ -45,7 +64,10 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
           <p className="text-sm text-slate-600">{statusCounts.total} resposta(s) no total.</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/admin/roster" className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-50">
+          <Link
+            href="/admin/roster"
+            className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
             Gerenciar lista
           </Link>
           <form action={logoutAdminAction}>
@@ -76,10 +98,62 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
         ))}
       </div>
 
+      {suggestions.length > 0 && (
+        <Card>
+          <CardTitle className="text-base">Sugestões pendentes ({suggestions.length})</CardTitle>
+          <CardDescription>
+            Moradores pediram esses interesses. Aprove (escolhendo a categoria) para adicionar ao catálogo, ou rejeite.
+          </CardDescription>
+          <div className="mt-4 space-y-3">
+            {suggestions.map((s) => (
+              <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="font-medium text-slate-900">{s.name}</div>
+                  <div className="text-xs text-slate-500">
+                    {s.profiles ? `por ${s.profiles.full_name} (${s.profiles.unit})` : "anônimo"} ·{" "}
+                    {new Date(s.created_at).toLocaleDateString("pt-BR")}
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <form action={approveSuggestionAction} className="flex flex-1 flex-wrap items-center gap-2">
+                    <input type="hidden" name="id" value={s.id} />
+                    <input type="hidden" name="name" value={s.name} />
+                    <select
+                      name="category"
+                      required
+                      defaultValue=""
+                      className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm"
+                    >
+                      <option value="" disabled>
+                        Categoria…
+                      </option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">
+                      Aprovar
+                    </button>
+                  </form>
+                  <form action={rejectSuggestionAction}>
+                    <input type="hidden" name="id" value={s.id} />
+                    <button className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">
+                      Rejeitar
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card>
         <CardTitle className="text-base">Respostas</CardTitle>
         <CardDescription>
-          Confira quem respondeu. Pendentes são entradas sem match na lista oficial — verifique e promova ou rejeite.
+          Pendentes são entradas sem match na lista oficial — verifique e promova ou rejeite.
         </CardDescription>
 
         <div className="mt-4 overflow-x-auto">
@@ -113,10 +187,14 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
                       <div className="text-xs text-slate-500">{r.unit}</div>
                     </td>
                     <td className="py-3 pr-3 text-xs text-slate-600">
-                      {ageLabel}<br />{genderLabel}
+                      {ageLabel}
+                      <br />
+                      {genderLabel}
                     </td>
                     <td className="py-3 pr-3 text-xs text-slate-600">
-                      {intCount} interesse(s)<br />{slotCount} turno(s)
+                      {intCount} interesse(s)
+                      <br />
+                      {slotCount} hora(s)
                     </td>
                     <td className="py-3 pr-3">
                       <span
@@ -138,19 +216,25 @@ export default async function AdminHome({ searchParams }: { searchParams: Search
                           <form action={setProfileStatusAction}>
                             <input type="hidden" name="id" value={r.id} />
                             <input type="hidden" name="status" value="verified" />
-                            <button className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700">Verificar</button>
+                            <button className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700">
+                              Verificar
+                            </button>
                           </form>
                         )}
                         {r.status !== "rejected" && (
                           <form action={setProfileStatusAction}>
                             <input type="hidden" name="id" value={r.id} />
                             <input type="hidden" name="status" value="rejected" />
-                            <button className="rounded-md bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-700">Rejeitar</button>
+                            <button className="rounded-md bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-700">
+                              Rejeitar
+                            </button>
                           </form>
                         )}
                         <form action={deleteProfileAction}>
                           <input type="hidden" name="id" value={r.id} />
-                          <button className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">Apagar</button>
+                          <button className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
+                            Apagar
+                          </button>
                         </form>
                       </div>
                     </td>

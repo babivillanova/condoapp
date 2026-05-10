@@ -2,15 +2,19 @@ import { redirect } from "next/navigation";
 import { ProgressBar } from "@/components/progress-bar";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { InterestPicker } from "@/components/interest-picker";
+import { SuggestInterest } from "@/components/suggest-interest";
 import { getSessionProfileId } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { Affinity, Interest } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function InterestsPage() {
+type SearchParams = Promise<{ suggested?: string }>;
+
+export default async function InterestsPage({ searchParams }: { searchParams: SearchParams }) {
   const profileId = await getSessionProfileId();
   if (!profileId) redirect("/identify");
+  const sp = await searchParams;
 
   const sb = supabaseAdmin();
   const [{ data: catalogData }, { data: selData }] = await Promise.all([
@@ -23,17 +27,26 @@ export default async function InterestsPage() {
   const affinityById: Record<string, Affinity> = {};
   for (const r of selData ?? []) affinityById[r.interest_id as string] = r.affinity as Affinity;
 
+  const suggestedState = sp.suggested === "1" ? "ok" : sp.suggested === "invalid" ? "invalid" : null;
+
   return (
-    <div>
+    <div className="space-y-4">
       <ProgressBar current="interests" />
       <Card>
         <CardTitle>O que te interessa?</CardTitle>
         <CardDescription>
-          Marque tudo que você toparia. Pra cada um você pode dizer se é só curiosidade, se já pratica, ou se
-          topa ensinar (a gente pode achar professor dentro do próprio condo!).
+          Toque pra selecionar. Quando estiver selecionado, toque o nível para alternar:
+          {" "}<strong>I</strong> Iniciante · <strong>II</strong> Intermediário · <strong>III</strong> Avançado.
         </CardDescription>
         <div className="mt-6">
           <InterestPicker catalog={catalog} selectedIds={selectedIds} affinityById={affinityById} />
+        </div>
+      </Card>
+
+      <Card>
+        <CardTitle className="text-base">Sugerir um novo interesse</CardTitle>
+        <div className="mt-3">
+          <SuggestInterest initialState={suggestedState} />
         </div>
       </Card>
     </div>

@@ -18,14 +18,15 @@ export const GENDERS = [
 
 export type Gender = (typeof GENDERS)[number]["value"];
 
-export const TIME_SLOTS = [
-  { value: "morning", label: "Manhã", hint: "06h–12h" },
-  { value: "afternoon", label: "Tarde", hint: "12h–18h" },
-  { value: "evening", label: "Noite", hint: "18h–24h" },
-  { value: "dawn", label: "Madrugada", hint: "00h–06h" },
-] as const;
+// 24 horas. Para facilitar o overview, agrupamos visualmente em 4 turnos.
+export const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
-export type TimeSlot = (typeof TIME_SLOTS)[number]["value"];
+export const TURNOS = [
+  { label: "Madrugada", hint: "00–05", range: [0, 5] as const },
+  { label: "Manhã", hint: "06–11", range: [6, 11] as const },
+  { label: "Tarde", hint: "12–17", range: [12, 17] as const },
+  { label: "Noite", hint: "18–23", range: [18, 23] as const },
+] as const;
 
 export const DAYS = [
   { value: 0, short: "Dom", long: "Domingo" },
@@ -38,9 +39,9 @@ export const DAYS = [
 ] as const;
 
 export const AFFINITIES = [
-  { value: "curious", label: "Curioso(a)" },
-  { value: "practitioner", label: "Praticante" },
-  { value: "teacher", label: "Quero ensinar" },
+  { value: "beginner", label: "Iniciante", short: "Ini" },
+  { value: "intermediate", label: "Intermediário", short: "Int" },
+  { value: "advanced", label: "Avançado", short: "Av" },
 ] as const;
 
 export type Affinity = (typeof AFFINITIES)[number]["value"];
@@ -69,3 +70,7 @@ export type Profile = {
   created_at: string;
   updated_at: string;
 };
+
+export function formatHour(h: number): string {
+  return `${String(h).padStart(2, "0")}h`;
+}

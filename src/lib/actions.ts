@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 import { matchRoster, normalize, normalizeUnit, type RosterEntry } from "@/lib/match";
 import { clearSession, getSessionProfileId, setSessionProfile } from "@/lib/session";
-import type { AgeBand, Affinity, Gender, TimeSlot } from "@/lib/types";
+import type { AgeBand, Affinity, Gender } from "@/lib/types";
 
 async function loadRoster(): Promise<RosterEntry[]> {
   const sb = supabaseAdmin();
@@ -88,7 +88,7 @@ export async function interestsAction(formData: FormData): Promise<void> {
     const rows = ids.map((interest_id) => ({
       profile_id: profileId,
       interest_id,
-      affinity: affinities.get(interest_id) ?? "curious",
+      affinity: affinities.get(interest_id) ?? "beginner",
     }));
     const { error } = await sb.from("profile_interests").insert(rows);
     if (error) throw error;
@@ -107,11 +107,10 @@ export async function availabilityAction(formData: FormData): Promise<void> {
   if (slots.length) {
     const rows = slots
       .map((s) => {
-        const [day, slot] = s.split(":");
-        const dow = Number(day);
-        if (Number.isNaN(dow) || dow < 0 || dow > 6) return null;
-        if (!["morning", "afternoon", "evening", "dawn"].includes(slot)) return null;
-        return { profile_id: profileId, day_of_week: dow, time_slot: slot as TimeSlot };
+        const [day, hour] = s.split(":").map(Number);
+        if (Number.isNaN(day) || day < 0 || day > 6) return null;
+        if (Number.isNaN(hour) || hour < 0 || hour > 23) return null;
+        return { profile_id: profileId, day_of_week: day, hour };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
     if (rows.length) {
@@ -140,4 +139,29 @@ export async function deleteMyDataAction(): Promise<void> {
   await sb.from("profiles").delete().eq("id", profileId);
   await clearSession();
   redirect("/?deleted=1");
+}
+
+export async function suggestInterestAction(formData: FormData): Promise<void> {
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name || name.length < 2 || name.length > 80) redirect("/interests?suggested=invalid");
+
+  const profileId = await getSessionProfileId();
+  const sb = supabaseAdmin();
+  const normalized = normalize(name);
+
+  // Evita duplicar a mesma sugestão pendente
+  const { data: dup } = await sb
+    .from("interest_suggestions")
+    .select("id")
+    .eq("normalized_name", normalized)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (!dup) {
+    await sb.from("interest_suggestions").insert({
+      name,
+      normalized_name: normalized,
+      profile_id: profileId,
+    });
+  }
+  redirect("/interests?suggested=1");
 }

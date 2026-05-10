@@ -93,3 +93,33 @@ export async function importRosterCsvAction(formData: FormData): Promise<void> {
   }
   revalidatePath("/admin/roster");
 }
+
+export async function approveSuggestionAction(formData: FormData): Promise<void> {
+  await ensureAdmin();
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim();
+  if (!id || !name || !category) return;
+  const sb = supabaseAdmin();
+
+  const { data: existing } = await sb
+    .from("interests")
+    .select("id")
+    .eq("category", category)
+    .eq("name", name)
+    .maybeSingle();
+  if (!existing) {
+    await sb.from("interests").insert({ category, name, sort_order: 9999 });
+  }
+  await sb.from("interest_suggestions").update({ status: "approved" }).eq("id", id);
+  revalidatePath("/admin");
+}
+
+export async function rejectSuggestionAction(formData: FormData): Promise<void> {
+  await ensureAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const sb = supabaseAdmin();
+  await sb.from("interest_suggestions").update({ status: "rejected" }).eq("id", id);
+  revalidatePath("/admin");
+}

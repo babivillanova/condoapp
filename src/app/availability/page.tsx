@@ -12,8 +12,8 @@ export default async function AvailabilityPage() {
   if (!profileId) redirect("/identify");
 
   const sb = supabaseAdmin();
-  const { data } = await sb.from("availability").select("day_of_week, time_slot").eq("profile_id", profileId);
-  const initial = (data ?? []).map((r) => `${r.day_of_week}:${r.time_slot}` as `${number}:${"morning" | "afternoon" | "evening" | "dawn"}`);
+  const { data } = await sb.from("availability").select("day_of_week, hour").eq("profile_id", profileId);
+  const initial = (data ?? []).map((r) => `${r.day_of_week}:${r.hour}` as `${number}:${number}`);
 
   return (
     <div>
@@ -21,8 +21,8 @@ export default async function AvailabilityPage() {
       <Card>
         <CardTitle>Quando você está livre?</CardTitle>
         <CardDescription>
-          Toque (ou arraste) para marcar os turnos em que você toparia uma aula ou encontro. Pense em
-          disponibilidade média — não precisa ser todo dia.
+          Marque as horas em que você toparia uma aula ou encontro. Use os atalhos pra preencher rápido —
+          depois ajuste o que precisar.
         </CardDescription>
         <div className="mt-6">
           <AvailabilityGrid initial={initial} />

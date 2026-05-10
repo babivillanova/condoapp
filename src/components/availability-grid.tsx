@@ -3,10 +3,10 @@
 import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { availabilityAction } from "@/lib/actions";
-import { DAYS, TIME_SLOTS, type TimeSlot } from "@/lib/types";
+import { DAYS, HOURS, TURNOS } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
-type Cell = `${number}:${TimeSlot}`;
+type Cell = `${number}:${number}`; // day:hour
 
 type Props = { initial: Cell[] };
 
@@ -16,8 +16,8 @@ export function AvailabilityGrid({ initial }: Props) {
   const dragMode = useRef<"add" | "remove" | null>(null);
   const dragging = useRef(false);
 
-  function key(day: number, slot: TimeSlot): Cell {
-    return `${day}:${slot}` as Cell;
+  function key(day: number, hour: number): Cell {
+    return `${day}:${hour}` as Cell;
   }
 
   function apply(c: Cell, mode: "add" | "remove") {
@@ -48,18 +48,54 @@ export function AvailabilityGrid({ initial }: Props) {
 
   function selectAll() {
     const all: Cell[] = [];
-    for (const d of DAYS) for (const t of TIME_SLOTS) all.push(key(d.value, t.value));
+    for (const d of DAYS) for (const h of HOURS) all.push(key(d.value, h));
     setSelected(new Set(all));
   }
-  function selectWeekend() {
+
+  function clear() {
+    setSelected(new Set());
+  }
+
+  function selectTurno(rangeStart: number, rangeEnd: number) {
     setSelected((prev) => {
       const next = new Set(prev);
-      for (const d of [0, 6]) for (const t of TIME_SLOTS) next.add(key(d, t.value));
+      for (const d of DAYS) for (let h = rangeStart; h <= rangeEnd; h++) next.add(key(d.value, h));
       return next;
     });
   }
-  function clear() {
-    setSelected(new Set());
+
+  function selectWeekend() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const d of [0, 6]) for (const h of HOURS) next.add(key(d, h));
+      return next;
+    });
+  }
+
+  function toggleHourRow(hour: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const allOn = DAYS.every((d) => next.has(key(d.value, hour)));
+      for (const d of DAYS) {
+        const c = key(d.value, hour);
+        if (allOn) next.delete(c);
+        else next.add(c);
+      }
+      return next;
+    });
+  }
+
+  function toggleDayCol(day: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const allOn = HOURS.every((h) => next.has(key(day, h)));
+      for (const h of HOURS) {
+        const c = key(day, h);
+        if (allOn) next.delete(c);
+        else next.add(c);
+      }
+      return next;
+    });
   }
 
   function submit() {
@@ -72,72 +108,99 @@ export function AvailabilityGrid({ initial }: Props) {
 
   return (
     <div onMouseUp={endDrag} onMouseLeave={endDrag} onTouchEnd={endDrag}>
-      <div className="mb-3 flex flex-wrap gap-2">
+      {/* Quick presets */}
+      <div className="mb-3 flex flex-wrap gap-1.5">
         <button type="button" onClick={selectAll} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200">
-          Selecionar tudo
+          Tudo
         </button>
         <button type="button" onClick={selectWeekend} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200">
-          Fins de semana
+          Fim de semana
         </button>
+        {TURNOS.map((t) => (
+          <button
+            key={t.label}
+            type="button"
+            onClick={() => selectTurno(t.range[0], t.range[1])}
+            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
+          >
+            {t.label} ({t.hint})
+          </button>
+        ))}
         <button type="button" onClick={clear} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200">
           Limpar
         </button>
-        <span className="ml-auto self-center text-xs text-slate-500">{selected.size} de 28 turnos</span>
+        <span className="ml-auto self-center text-xs text-slate-500">{selected.size}/168</span>
       </div>
 
+      {/* Hint */}
+      <p className="mb-2 text-xs text-slate-500">
+        Toque (ou arraste) para marcar. Toque a hora para selecionar a linha inteira; toque o dia para a coluna.
+      </p>
+
       <div className="overflow-x-auto">
-        <div className="grid select-none gap-1" style={{ gridTemplateColumns: "auto repeat(7, minmax(48px, 1fr))" }}>
+        <div className="grid select-none gap-[2px]" style={{ gridTemplateColumns: "auto repeat(7, minmax(36px, 1fr))" }}>
           <div />
           {DAYS.map((d) => (
-            <div key={d.value} className="pb-2 text-center text-xs font-semibold uppercase text-slate-500">
+            <button
+              type="button"
+              key={d.value}
+              onClick={() => toggleDayCol(d.value)}
+              className="pb-1.5 text-center text-[10px] font-semibold uppercase text-slate-500 hover:text-brand-700"
+            >
               {d.short}
-            </div>
+            </button>
           ))}
-          {TIME_SLOTS.map((t) => (
-            <div key={t.value} className="contents">
-              <div className="flex flex-col justify-center pr-2 text-right">
-                <span className="text-xs font-semibold text-slate-700">{t.label}</span>
-                <span className="text-[10px] text-slate-400">{t.hint}</span>
+
+          {HOURS.map((h) => {
+            const turnoBg =
+              h < 6 ? "bg-slate-50/60" : h < 12 ? "bg-amber-50/40" : h < 18 ? "bg-sky-50/40" : "bg-indigo-50/40";
+            return (
+              <div key={h} className="contents">
+                <button
+                  type="button"
+                  onClick={() => toggleHourRow(h)}
+                  className="pr-1.5 text-right text-[10px] font-medium tabular-nums text-slate-500 hover:text-brand-700"
+                >
+                  {String(h).padStart(2, "0")}h
+                </button>
+                {DAYS.map((d) => {
+                  const c = key(d.value, h);
+                  const sel = selected.has(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        startDrag(c);
+                      }}
+                      onMouseEnter={() => dragOver(c)}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        startDrag(c);
+                      }}
+                      onTouchMove={(e) => {
+                        const touch = e.touches[0];
+                        if (!touch) return;
+                        const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+                        const cellAttr = el?.getAttribute("data-cell") as Cell | null;
+                        if (cellAttr) dragOver(cellAttr);
+                      }}
+                      data-cell={c}
+                      className={cn(
+                        "h-7 rounded-sm border text-[10px] transition",
+                        sel
+                          ? "border-brand-600 bg-brand-500"
+                          : `border-slate-200 ${turnoBg} hover:border-brand-300`,
+                      )}
+                      aria-pressed={sel}
+                      aria-label={`${d.long} ${String(h).padStart(2, "0")}h`}
+                    />
+                  );
+                })}
               </div>
-              {DAYS.map((d) => {
-                const c = key(d.value, t.value);
-                const sel = selected.has(c);
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      startDrag(c);
-                    }}
-                    onMouseEnter={() => dragOver(c)}
-                    onTouchStart={(e) => {
-                      e.preventDefault();
-                      startDrag(c);
-                    }}
-                    onTouchMove={(e) => {
-                      const touch = e.touches[0];
-                      if (!touch) return;
-                      const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
-                      const cellAttr = el?.getAttribute("data-cell") as Cell | null;
-                      if (cellAttr) dragOver(cellAttr);
-                    }}
-                    data-cell={c}
-                    className={cn(
-                      "h-12 rounded-md border text-sm transition",
-                      sel
-                        ? "border-brand-600 bg-brand-500 text-white"
-                        : "border-slate-200 bg-white text-slate-400 hover:border-brand-300",
-                    )}
-                    aria-pressed={sel}
-                    aria-label={`${d.long} ${t.label}`}
-                  >
-                    {sel ? "✓" : ""}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
