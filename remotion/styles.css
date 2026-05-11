@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f5efe4;
+  --surface: #fbf7ee;
+  --surface-2: #efe7d5;
+  --ink: #1c1a17;
+  --ink-2: #4a443d;
+  --ink-3: #7a7166;
+  --ink-4: #b3a896;
+  --rule: rgba(28, 26, 23, 0.10);
+  --rule-strong: rgba(28, 26, 23, 0.25);
+  --accent: oklch(0.38 0.07 152);
+  --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
+  --danger: oklch(0.55 0.18 28);
+
+  --display: 'Instrument Serif', 'Newsreader', Georgia, serif;
+  --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+body, html { background: var(--bg); }

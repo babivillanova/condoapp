@@ -6,15 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "video:studio": "remotion studio",
+    "video:render": "remotion render CondoApp public/condoapp-demo.mp4"
   },
   "dependencies": {
+    "@remotion/cli": "^4.0.459",
+    "@remotion/google-fonts": "^4.0.459",
+    "@remotion/zod-types": "^4.0.459",
     "@supabase/supabase-js": "^2.45.4",
     "next": "^16.2.6",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "remotion": "^4.0.459"
   },
   "devDependencies": {
+    "@remotion/tailwind": "^4.0.459",
     "@types/node": "^22.9.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
