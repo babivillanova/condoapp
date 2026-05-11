@@ -105,14 +105,17 @@ function AgeOption({
   checked: boolean;
 }) {
   return (
-    <label
-      className={`group flex cursor-pointer items-center justify-between gap-2 rounded-xl border px-[14px] py-3 font-sans text-[14px] font-medium transition has-[:checked]:bg-ink has-[:checked]:text-bg has-[:checked]:border-ink ${
-        checked ? "bg-ink text-bg border-ink" : "bg-surface text-ink border-rule hover:border-rule-strong"
-      }`}
-    >
-      <input type="radio" name="age_band" value={value} defaultChecked={checked} required className="sr-only" />
+    <label className="group flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-rule bg-surface px-[14px] py-3 font-sans text-[14px] font-medium text-ink transition hover:border-rule-strong has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-bg">
+      <input
+        type="radio"
+        name="age_band"
+        value={value}
+        defaultChecked={checked}
+        required
+        className="sr-only"
+      />
       <span>{title}</span>
-      <span className="font-mono text-[11px] text-ink-3 group-has-[:checked]:text-[rgba(248,244,237,0.65)]">
+      <span className="font-mono text-[11px] text-ink-3 transition group-has-[:checked]:text-[rgba(248,244,237,0.65)]">
         {detail}
       </span>
     </label>
@@ -129,12 +132,15 @@ function GenderOption({
   checked: boolean;
 }) {
   return (
-    <label
-      className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-[14px] font-sans text-[14px] font-medium transition has-[:checked]:bg-ink has-[:checked]:text-bg has-[:checked]:border-ink ${
-        checked ? "bg-ink text-bg border-ink" : "bg-surface text-ink border-rule hover:border-rule-strong"
-      }`}
-    >
-      <input type="radio" name="gender" value={value} defaultChecked={checked} required className="sr-only" />
+    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-rule bg-surface px-4 py-[14px] font-sans text-[14px] font-medium text-ink transition hover:border-rule-strong has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-bg">
+      <input
+        type="radio"
+        name="gender"
+        value={value}
+        defaultChecked={checked}
+        required
+        className="sr-only"
+      />
       <span>{title}</span>
     </label>
   );

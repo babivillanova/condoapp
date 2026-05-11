@@ -11,6 +11,7 @@ import {
   importRosterCsvAction,
   logoutAdminAction,
 } from "@/lib/admin-actions";
+import { UNIT_HELP, UNIT_PATTERN, UNIT_PLACEHOLDER } from "@/lib/unit";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +63,21 @@ export default async function RosterPage() {
           </p>
         </div>
 
-        <Section title="Adicionar morador" hint="Use o nome completo como aparece nos registros do condomínio.">
+        <Section title="Adicionar morador" hint={`Nome como aparece nos registros + unidade no formato ${UNIT_PLACEHOLDER}`}>
           <form action={addRosterAction} className="grid items-end gap-3 sm:grid-cols-[2fr_1fr_auto]">
             <Field label="Nome" id="full_name" name="full_name" required placeholder="Maria da Silva" />
-            <Field label="Unidade" id="unit" name="unit" required placeholder="Bloco A — Apto 302" mono />
+            <Field
+              label="Unidade"
+              id="unit"
+              name="unit"
+              required
+              placeholder={UNIT_PLACEHOLDER}
+              pattern={UNIT_PATTERN}
+              title={UNIT_HELP}
+              maxLength={6}
+              style={{ textTransform: "uppercase" }}
+              mono
+            />
             <div>
               <Button type="submit" full={false}>
                 Adicionar
@@ -78,7 +90,7 @@ export default async function RosterPage() {
           title="Importar CSV"
           hint={
             <>
-              Cole linhas no formato <code className="rounded bg-surface-2 px-1 font-mono text-[12px]">Nome, Unidade</code>. Uma por linha. A primeira pode ser cabeçalho.
+              Linhas <code className="rounded bg-surface-2 px-1 font-mono text-[12px]">Nome, Unidade</code> — uma por linha. Unidade no formato {UNIT_PLACEHOLDER}. Linhas inválidas são ignoradas silenciosamente.
             </>
           }
         >
@@ -87,7 +99,7 @@ export default async function RosterPage() {
               name="csv"
               rows={6}
               className="w-full rounded-xl border border-rule bg-surface-2 p-3.5 font-mono text-[13px] text-ink outline-none focus:border-ink"
-              placeholder={"Nome, Unidade\nMaria da Silva, Bloco A — Apto 302\nJoão Souza, Bloco B — Apto 101"}
+              placeholder={"Nome, Unidade\nMaria da Silva, A1\nJoão Souza, B102"}
             />
             <Button type="submit" variant="ghost" full={false}>
               Importar

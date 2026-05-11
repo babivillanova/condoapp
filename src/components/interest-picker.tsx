@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { LevelHintModal } from "@/components/level-hint-modal";
 import { interestsAction } from "@/lib/actions";
 import { type Affinity, type Interest } from "@/lib/types";
 import { cn } from "@/lib/cn";
+
+const HINT_KEY = "condoapp.levelHintSeen";
 
 type Props = {
   catalog: Interest[];
@@ -27,6 +30,23 @@ export function InterestPicker({ catalog, selectedIds, affinityById }: Props) {
   const [selected, setSelected] = useState<Map<string, Affinity>>(
     () => new Map(selectedIds.map((id) => [id, affinityById[id] ?? "beginner"])),
   );
+  const [showLevelHint, setShowLevelHint] = useState(false);
+  const hintShownRef = useRef(false);
+
+  useEffect(() => {
+    if (selected.size >= 1 && !hintShownRef.current) {
+      const seen = typeof window !== "undefined" && window.localStorage.getItem(HINT_KEY);
+      if (!seen) {
+        setShowLevelHint(true);
+        hintShownRef.current = true;
+      }
+    }
+  }, [selected.size]);
+
+  function dismissLevelHint() {
+    setShowLevelHint(false);
+    if (typeof window !== "undefined") window.localStorage.setItem(HINT_KEY, "1");
+  }
 
   const allCategories = useMemo(() => Array.from(new Set(catalog.map((i) => i.category))), [catalog]);
 
@@ -81,6 +101,7 @@ export function InterestPicker({ catalog, selectedIds, affinityById }: Props) {
 
   return (
     <div className="flex flex-1 flex-col">
+      {showLevelHint && <LevelHintModal onDismiss={dismissLevelHint} />}
       {/* Sticky search + categories */}
       <div className="sticky top-0 z-[4] bg-bg px-5 pb-3">
         <div className="flex h-11 items-center gap-2.5 rounded-xl border border-rule bg-surface-2 px-[14px]">

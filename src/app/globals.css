@@ -14,7 +14,8 @@
   --ink-4: #b3a896;
   --rule: rgba(28, 26, 23, 0.10);
   --rule-strong: rgba(28, 26, 23, 0.25);
-  --accent: oklch(0.62 0.13 38);
+  /* Central Park Mooca dark green — logo color */
+  --accent: oklch(0.38 0.07 152);
   --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
   --danger: oklch(0.55 0.18 28);
 

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 import { clearAdminSession, isAdmin, setAdminSession } from "@/lib/session";
 import { normalize, normalizeUnit } from "@/lib/match";
+import { cleanUnit, isValidUnit } from "@/lib/unit";
 
 async function ensureAdmin() {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -48,8 +49,10 @@ export async function deleteProfileAction(formData: FormData): Promise<void> {
 export async function addRosterAction(formData: FormData): Promise<void> {
   await ensureAdmin();
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const unit = String(formData.get("unit") ?? "").trim();
-  if (!fullName || !unit) return;
+  const unitRaw = String(formData.get("unit") ?? "").trim();
+  if (!fullName || !unitRaw) return;
+  const unit = cleanUnit(unitRaw);
+  if (!isValidUnit(unit)) return;
   const sb = supabaseAdmin();
   await sb.from("residents_roster").insert({
     full_name: fullName,
@@ -77,9 +80,11 @@ export async function importRosterCsvAction(formData: FormData): Promise<void> {
   for (const line of lines) {
     const parts = line.split(",").map((p) => p.trim().replace(/^"|"$/g, ""));
     if (parts.length < 2) continue;
-    const [fullName, unit] = parts;
-    if (!fullName || !unit) continue;
+    const [fullName, unitRaw] = parts;
+    if (!fullName || !unitRaw) continue;
     if (fullName.toLowerCase() === "name" || fullName.toLowerCase() === "nome") continue;
+    const unit = cleanUnit(unitRaw);
+    if (!isValidUnit(unit)) continue;
     rows.push({
       full_name: fullName,
       normalized_name: normalize(fullName),

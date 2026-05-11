@@ -6,6 +6,7 @@ import { TitleBlock } from "@/components/title-block";
 import { identifyAction } from "@/lib/actions";
 import { getSessionProfileId } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
+import { UNIT_HELP, UNIT_PATTERN, UNIT_PLACEHOLDER } from "@/lib/unit";
 
 export const dynamic = "force-dynamic";
 
@@ -44,19 +45,30 @@ export default async function IdentifyPage({ searchParams }: { searchParams: Sea
           />
           <div className="h-[14px]" />
           <Field
-            label="Unidade / apartamento"
+            label="Unidade"
             id="unit"
             name="unit"
             required
             autoComplete="off"
+            inputMode="text"
             defaultValue={prefill?.unit ?? ""}
-            placeholder="Bloco A — Apto 302"
+            placeholder={UNIT_PLACEHOLDER}
+            pattern={UNIT_PATTERN}
+            title={UNIT_HELP}
+            maxLength={6}
+            style={{ textTransform: "uppercase" }}
             mono
           />
+          <p className="mt-1.5 font-mono text-[10px] tracking-[0.05em] text-ink-3">{UNIT_HELP}</p>
 
           {error === "missing" && (
             <p className="mt-3 text-[12.5px] text-[color:var(--danger)]">
               Preencha nome e unidade pra continuar.
+            </p>
+          )}
+          {error === "unit_format" && (
+            <p className="mt-3 text-[12.5px] text-[color:var(--danger)]">
+              Formato da unidade inválido. Use letra da torre + número (ex: A1, B4, C12).
             </p>
           )}
 
