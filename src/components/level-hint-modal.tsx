@@ -25,7 +25,7 @@ export function LevelHintModal({ onDismiss }: Props) {
           className="mt-2 font-display font-normal leading-[1.05] tracking-[-0.015em] text-ink"
           style={{ fontSize: 28 }}
         >
-          Diz pra gente o quanto você <span className="font-display italic text-accent">manja</span>.
+          Indique seu <span className="font-display italic text-accent">nível de conhecimento</span>.
         </h2>
         <p className="mt-3 font-sans text-[14px] leading-[1.5] text-ink-2">
           Sempre que um interesse fica selecionado, aparece um nível ao lado. Toque pra alternar:

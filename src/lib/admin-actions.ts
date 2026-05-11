@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 import { clearAdminSession, isAdmin, setAdminSession } from "@/lib/session";
 import { normalize, normalizeUnit } from "@/lib/match";
-import { cleanUnit, isValidUnit } from "@/lib/unit";
+import { composeUnit, isValidApt, isValidTower, splitUnit } from "@/lib/unit";
 
 async function ensureAdmin() {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -49,10 +49,11 @@ export async function deleteProfileAction(formData: FormData): Promise<void> {
 export async function addRosterAction(formData: FormData): Promise<void> {
   await ensureAdmin();
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const unitRaw = String(formData.get("unit") ?? "").trim();
-  if (!fullName || !unitRaw) return;
-  const unit = cleanUnit(unitRaw);
-  if (!isValidUnit(unit)) return;
+  const tower = String(formData.get("tower") ?? "").trim().toUpperCase();
+  const aptRaw = String(formData.get("apt") ?? "").trim();
+  if (!fullName || !tower || !aptRaw) return;
+  if (!isValidTower(tower) || !isValidApt(aptRaw)) return;
+  const unit = composeUnit(tower, aptRaw);
   const sb = supabaseAdmin();
   await sb.from("residents_roster").insert({
     full_name: fullName,
@@ -77,14 +78,29 @@ export async function importRosterCsvAction(formData: FormData): Promise<void> {
   const csv = String(formData.get("csv") ?? "");
   const lines = csv.split(/\r?\n/).filter((l) => l.trim());
   const rows: Array<{ full_name: string; normalized_name: string; unit: string; normalized_unit: string }> = [];
+  // CSV format options:
+  //   3 cols  Nome, Torre, Apto         (preferred)
+  //   2 cols  Nome, "Torre-Apto"        (e.g. "A1-302")
   for (const line of lines) {
     const parts = line.split(",").map((p) => p.trim().replace(/^"|"$/g, ""));
     if (parts.length < 2) continue;
-    const [fullName, unitRaw] = parts;
-    if (!fullName || !unitRaw) continue;
+    const [fullName, ...rest] = parts;
+    if (!fullName) continue;
     if (fullName.toLowerCase() === "name" || fullName.toLowerCase() === "nome") continue;
-    const unit = cleanUnit(unitRaw);
-    if (!isValidUnit(unit)) continue;
+
+    let tower = "";
+    let aptRaw = "";
+    if (rest.length >= 2) {
+      tower = rest[0].toUpperCase();
+      aptRaw = rest[1];
+    } else {
+      const split = splitUnit(rest[0]);
+      tower = split.tower;
+      aptRaw = split.apt;
+    }
+
+    if (!isValidTower(tower) || !isValidApt(aptRaw)) continue;
+    const unit = composeUnit(tower, aptRaw);
     rows.push({
       full_name: fullName,
       normalized_name: normalize(fullName),

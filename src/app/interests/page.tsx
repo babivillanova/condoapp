@@ -41,7 +41,7 @@ export default async function InterestsPage({ searchParams }: { searchParams: Se
             O que te <Italic>interessa?</Italic>
           </>
         }
-        sub="Escolha tudo que te chama. Toque o nível (I → II → III) pra dizer o quanto manja."
+        sub="Escolha tudo que te chama. Toque o nível (I → II → III) para indicar seu nível de conhecimento."
       />
 
       <InterestPicker catalog={catalog} selectedIds={selectedIds} affinityById={affinityById} />

@@ -1,17 +1,32 @@
-// Unit format: tower letter + apartment number, e.g. "A1", "B4", "C12".
-// Stored uppercase. normalize_unit (for fuzzy match) keeps the same form
-// but lowercased + alphanumeric only (handled in match.ts).
+// Central Park Mooca unit format: tower (fixed list) + apartment number.
+// Combined storage form: `${TOWER}-${APT}`, e.g. "A1-302".
 
-export const UNIT_PATTERN = "^[A-Z][0-9]+$";
-export const UNIT_REGEX = /^[A-Z][0-9]+$/;
-export const UNIT_PLACEHOLDER = "A1, B4, C12...";
-export const UNIT_HELP = "Letra da torre + número do apartamento, sem espaço. Ex: A1, B4, C12.";
+export const TOWERS = ["A1", "A2", "B1", "B2", "B3", "B4", "C1", "C2", "C3"] as const;
+export type Tower = (typeof TOWERS)[number];
 
-export function cleanUnit(raw: string): string {
-  // Strip everything except letters/digits, uppercase.
-  return raw.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+export const APT_PATTERN = "^[0-9]{1,5}$";
+export const APT_REGEX = /^[0-9]{1,5}$/;
+export const UNIT_REGEX = /^[ABC][1-4]-[0-9]{1,5}$/;
+
+export function cleanApt(raw: string): string {
+  return raw.replace(/\D/g, "");
 }
 
-export function isValidUnit(raw: string): boolean {
-  return UNIT_REGEX.test(cleanUnit(raw));
+export function isValidApt(raw: string): boolean {
+  const apt = cleanApt(raw);
+  return APT_REGEX.test(apt);
+}
+
+export function isValidTower(raw: string): raw is Tower {
+  return (TOWERS as readonly string[]).includes(raw);
+}
+
+export function composeUnit(tower: string, aptRaw: string): string {
+  return `${tower.toUpperCase()}-${cleanApt(aptRaw)}`;
+}
+
+export function splitUnit(unit: string): { tower: string; apt: string } {
+  const m = unit.match(/^([ABC][1-4])-?(\d+)$/);
+  if (m) return { tower: m[1], apt: m[2] };
+  return { tower: "", apt: "" };
 }

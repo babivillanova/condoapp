@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { matchRoster, normalize, normalizeUnit, type RosterEntry } from "@/lib/match";
 import { clearSession, getSessionProfileId, setSessionProfile } from "@/lib/session";
 import type { AgeBand, Affinity, Gender } from "@/lib/types";
-import { cleanUnit, isValidUnit } from "@/lib/unit";
+import { composeUnit, isValidApt, isValidTower } from "@/lib/unit";
 
 async function loadRoster(): Promise<RosterEntry[]> {
   const sb = supabaseAdmin();
@@ -19,11 +19,12 @@ async function loadRoster(): Promise<RosterEntry[]> {
 
 export async function identifyAction(formData: FormData): Promise<void> {
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const unitRaw = String(formData.get("unit") ?? "").trim();
-  if (!fullName || !unitRaw) redirect("/identify?error=missing");
-
-  const unit = cleanUnit(unitRaw);
-  if (!isValidUnit(unit)) redirect("/identify?error=unit_format");
+  const tower = String(formData.get("tower") ?? "").trim().toUpperCase();
+  const aptRaw = String(formData.get("apt") ?? "").trim();
+  if (!fullName || !tower || !aptRaw) redirect("/identify?error=missing");
+  if (!isValidTower(tower)) redirect("/identify?error=tower");
+  if (!isValidApt(aptRaw)) redirect("/identify?error=apt");
+  const unit = composeUnit(tower, aptRaw);
 
   const roster = await loadRoster();
   const matched = matchRoster(fullName, unit, roster);
