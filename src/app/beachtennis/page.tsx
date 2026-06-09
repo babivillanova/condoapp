@@ -4,7 +4,7 @@ import { Field } from "@/components/ui/input";
 import { Italic } from "@/components/title-block";
 import { joinAction } from "@/lib/bt-actions";
 import { getBtParticipantId } from "@/lib/session";
-import { loadParticipants } from "@/lib/bt-data";
+import { getParticipant, loadParticipants } from "@/lib/bt-data";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +13,12 @@ export default async function BeachTennisHome({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  // Só redireciona se o participante do cookie ainda existir — senão um cookie
+  // "órfão" (apontando pra alguém apagado) causaria loop home ↔ /plan.
   const participantId = await getBtParticipantId();
-  if (participantId) redirect("/beachtennis/plan");
+  if (participantId && (await getParticipant(participantId))) {
+    redirect("/beachtennis/plan");
+  }
 
   const { error } = await searchParams;
   const participants = await loadParticipants();
