@@ -19,6 +19,11 @@
   --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
   --danger: oklch(0.55 0.18 28);
 
+  /* Beach Tennis — estados de disponibilidade */
+  --bt-free: oklch(0.52 0.12 152);
+  --bt-maybe: oklch(0.74 0.13 78);
+  --bt-blocked: oklch(0.56 0.18 28);
+
   --display: 'Instrument Serif', 'Newsreader', Georgia, serif;
   --sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;

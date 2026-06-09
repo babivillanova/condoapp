@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 
 const COOKIE_NAME = "condo_session";
 const ADMIN_COOKIE = "condo_admin";
+const BT_COOKIE = "bt_session";
 const MAX_AGE_DAYS = 90;
 
 function secret(): string {
@@ -79,4 +80,30 @@ export async function isAdmin(): Promise<boolean> {
 export async function clearAdminSession() {
   const jar = await cookies();
   jar.delete(ADMIN_COOKIE);
+}
+
+// ---------- Beach Tennis ----------
+// Mesmo padrão (cookie httpOnly assinado), mas guarda o participant_id.
+
+export async function setBtSession(participantId: string) {
+  const jar = await cookies();
+  jar.set(BT_COOKIE, pack(participantId), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * MAX_AGE_DAYS,
+  });
+}
+
+export async function getBtParticipantId(): Promise<string | null> {
+  const jar = await cookies();
+  const raw = jar.get(BT_COOKIE)?.value;
+  if (!raw) return null;
+  return unpack(raw);
+}
+
+export async function clearBtSession() {
+  const jar = await cookies();
+  jar.delete(BT_COOKIE);
 }

@@ -17,6 +17,9 @@ const config: Config = {
         accent: "var(--accent)",
         "accent-soft": "var(--accent-soft)",
         danger: "var(--danger)",
+        "bt-free": "var(--bt-free)",
+        "bt-maybe": "var(--bt-maybe)",
+        "bt-blocked": "var(--bt-blocked)",
       },
       fontFamily: {
         display: ["var(--display)"],
