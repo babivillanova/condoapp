@@ -24,7 +24,7 @@ export default async function BeachTennisHome({
       <div className="px-5 pt-[52px]">
         <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-3">
           <span className="h-[1px] w-[14px] bg-ink-3" />
-          Beach Tennis · As Amigas
+          Beach Tennis · O Rancho
         </div>
       </div>
 
