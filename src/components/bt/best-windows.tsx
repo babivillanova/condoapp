@@ -42,7 +42,7 @@ export function BestWindows({
     );
   }
 
-  const shown = showAll ? windows.slice(0, 12) : windows.slice(0, 4);
+  const shown = showAll ? windows.slice(0, 12) : windows.slice(0, 1);
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -111,13 +111,13 @@ export function BestWindows({
         );
       })}
 
-      {windows.length > 4 && (
+      {windows.length > 1 && (
         <button
           type="button"
           onClick={() => setShowAll((v) => !v)}
           className="mx-auto mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-3 underline-offset-4 hover:underline"
         >
-          {showAll ? "ver menos" : `ver mais (${Math.min(windows.length, 12) - 4})`}
+          {showAll ? "ver menos" : `ver mais (${Math.min(windows.length, 12) - 1})`}
         </button>
       )}
     </div>

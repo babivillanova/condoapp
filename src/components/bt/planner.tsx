@@ -45,7 +45,7 @@ const BRUSHES: { id: Brush; label: string; emoji: string }[] = [
 ];
 
 export function Planner({ meId, participants, marks, startISO, endISO, todayISO }: Props) {
-  const [brush, setBrush] = useState<Brush>("view");
+  const [brush, setBrush] = useState<Brush>("free");
   const [pendingStart, setPendingStart] = useState<string | null>(null);
   const [openDay, setOpenDay] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -126,6 +126,9 @@ export function Planner({ meId, participants, marks, startISO, endISO, todayISO 
     <div className="px-4">
       {/* Pincel / modo */}
       <div className="sticky top-0 z-20 -mx-4 mb-3 bg-bg/95 px-4 pb-2 pt-3 backdrop-blur">
+        <h2 className="mb-2.5 font-display text-[22px] font-normal italic leading-none text-ink">
+          Escolha e marque
+        </h2>
         <div className="grid grid-cols-4 gap-1.5">
           {BRUSHES.map((b) => {
             const active = brush === b.id;
